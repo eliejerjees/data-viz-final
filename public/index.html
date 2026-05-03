@@ -15,7 +15,7 @@
       <h1>European Big 5 — Player radar</h1>
       <p class="lede">
         Compare two players from Premier League, La Liga, Serie A, Bundesliga, and Ligue 1.
-        Stats use percentile ranks (0–100) across the full dataset. Goalkeepers only compare with goalkeepers.
+        Stats use min-max normalized scores (0–100) across the full dataset. Goalkeepers only compare with goalkeepers.
       </p>
       <p id="load-status" class="load-status" aria-live="polite"></p>
     </div>
@@ -23,6 +23,62 @@
 
   <main id="main" class="layout">
     <div id="comparison-warning" class="banner banner-warn" role="alert" hidden></div>
+
+    <section class="league-filter" aria-labelledby="league-filter-heading">
+      <div class="league-filter__head">
+        <h2 id="league-filter-heading">League focus</h2>
+        <p id="league-filter-status" aria-live="polite">Showing all players</p>
+      </div>
+      <div class="league-tabs" role="group" aria-label="Filter players by league">
+        <button type="button" class="league-tab is-active" data-league="all">All players</button>
+        <button type="button" class="league-tab" data-league="eng Premier League">Premier League</button>
+        <button type="button" class="league-tab" data-league="es La Liga">La Liga</button>
+        <button type="button" class="league-tab" data-league="it Serie A">Serie A</button>
+        <button type="button" class="league-tab" data-league="de Bundesliga">Bundesliga</button>
+        <button type="button" class="league-tab" data-league="fr Ligue 1">Ligue 1</button>
+      </div>
+      <div class="filter-block">
+        <div class="league-filter__head">
+          <div>
+          <h2 id="position-filter-heading">Stat focus</h2>
+            <p id="position-filter-status" aria-live="polite">All positions</p>
+          </div>
+          <button
+            type="button"
+            id="toggle-role-filter"
+            class="filter-toggle"
+            aria-expanded="false"
+            aria-controls="role-filter-block"
+          >
+            Role estimate ▾
+          </button>
+        </div>
+        <div class="league-tabs" role="group" aria-label="Set radar axes by broad position">
+          <button type="button" class="position-tab is-active" data-position="all">All positions</button>
+          <button type="button" class="position-tab" data-position="attacking">Attacking</button>
+          <button type="button" class="position-tab" data-position="midfield">Midfield</button>
+          <button type="button" class="position-tab" data-position="defending">Defending</button>
+          <button type="button" class="position-tab" data-position="goalkeeping">Goalkeeping</button>
+        </div>
+      </div>
+      <div id="role-filter-block" class="filter-block role-filter-block" hidden>
+        <div class="league-filter__head">
+          <h2 id="role-filter-heading">Role estimate</h2>
+          <p id="role-filter-status" aria-live="polite">All roles</p>
+        </div>
+        <div class="league-tabs" role="group" aria-label="Filter players by estimated role">
+          <button type="button" class="role-tab is-active" data-role="all">All roles</button>
+          <button type="button" class="role-tab" data-role="striker">Striker</button>
+          <button type="button" class="role-tab" data-role="winger">Winger</button>
+          <button type="button" class="role-tab" data-role="attacking-mid">Attacking Mid</button>
+          <button type="button" class="role-tab" data-role="central-mid">Central Mid</button>
+          <button type="button" class="role-tab" data-role="defensive-mid">Defensive Mid</button>
+          <button type="button" class="role-tab" data-role="fullback">Fullback</button>
+          <button type="button" class="role-tab" data-role="center-back">Center Back</button>
+          <button type="button" class="role-tab" data-role="goalkeeper">Goalkeeper</button>
+        </div>
+      </div>
+    </section>
 
     <section class="compare-grid" aria-labelledby="compare-heading">
       <h2 id="compare-heading" class="visually-hidden">Player comparison</h2>
@@ -56,6 +112,7 @@
           />
           <div class="player-text">
             <h3 id="name-a" class="player-name">Player A</h3>
+            <div id="identity-a" class="identity-row" aria-label="Player nationality and club"></div>
             <p id="meta-a" class="player-meta"></p>
           </div>
         </div>
@@ -69,6 +126,7 @@
           <span class="legend-item legend-a"><span class="swatch"></span> <span id="legend-a">Player A</span></span>
           <span class="legend-item legend-b"><span class="swatch"></span> <span id="legend-b">Player B</span></span>
         </div>
+        <button type="button" id="reset-stats" class="btn-secondary">Reset axes</button>
       </div>
 
       <article class="player-panel player-panel--b" aria-labelledby="name-b">
@@ -100,58 +158,18 @@
           />
           <div class="player-text">
             <h3 id="name-b" class="player-name">Player B</h3>
+            <div id="identity-b" class="identity-row" aria-label="Player nationality and club"></div>
             <p id="meta-b" class="player-meta"></p>
           </div>
         </div>
       </article>
     </section>
 
-    <section class="controls-section" aria-labelledby="axes-heading">
-      <div class="controls-head">
-        <h2 id="axes-heading">Radar axes</h2>
-        <button type="button" id="reset-stats" class="btn-secondary">Reset to recommended</button>
-      </div>
-      <p class="controls-hint">
-        Dropdowns update from preset recommendations when you pick players. Mixed outfield roles use three axes per player’s primary position (left player first).
-      </p>
-      <div class="axis-rows">
-        <div class="axis-row">
-          <label for="axis-0">Axis 1</label>
-          <select id="axis-0" aria-describedby="axes-heading"></select>
-          <button type="button" class="stat-help" aria-label="Explain statistic for axis 1">ⓘ</button>
-        </div>
-        <div class="axis-row">
-          <label for="axis-1">Axis 2</label>
-          <select id="axis-1"></select>
-          <button type="button" class="stat-help" aria-label="Explain statistic for axis 2">ⓘ</button>
-        </div>
-        <div class="axis-row">
-          <label for="axis-2">Axis 3</label>
-          <select id="axis-2"></select>
-          <button type="button" class="stat-help" aria-label="Explain statistic for axis 3">ⓘ</button>
-        </div>
-        <div class="axis-row">
-          <label for="axis-3">Axis 4</label>
-          <select id="axis-3"></select>
-          <button type="button" class="stat-help" aria-label="Explain statistic for axis 4">ⓘ</button>
-        </div>
-        <div class="axis-row">
-          <label for="axis-4">Axis 5</label>
-          <select id="axis-4"></select>
-          <button type="button" class="stat-help" aria-label="Explain statistic for axis 5">ⓘ</button>
-        </div>
-        <div class="axis-row">
-          <label for="axis-5">Axis 6</label>
-          <select id="axis-5"></select>
-          <button type="button" class="stat-help" aria-label="Explain statistic for axis 6">ⓘ</button>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="app-footer">
     <p>
-      Data: FBref-style aggregates · Images via PlaymakerStats search API · Percentiles exclude missing values per stat across all rows.
+      Data: FBref-style aggregates · Images via PlaymakerStats search API · Min-max ranges exclude missing values per stat across all rows.
     </p>
   </footer>
 

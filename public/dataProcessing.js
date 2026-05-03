@@ -1,10 +1,10 @@
 /**
- * CSV parsing, percentile normalization, stat taxonomy, and recommendation logic.
+ * CSV parsing, min-max normalization, stat taxonomy, and recommendation logic.
  */
 
 export const CATEGORIES = ["Attacking", "Midfield", "Defending", "Goalkeeping"];
 
-/** Stats where a lower raw value is better (percentile is inverted). */
+/** Stats where a lower raw value is better (normalized score is inverted). */
 export const LOWER_IS_BETTER = new Set([
   "GA",
   "GA90",
@@ -122,7 +122,7 @@ export const STAT_DESCRIPTIONS = {
   PSxG: "Expected goals after the shot based on placement (post-shot model).",
   Stp: "Crosses into the penalty area stopped by the keeper.",
   default:
-    "Statistic sourced from FBref-style aggregated player data. See FBref glossary for full definitions.",
+    "This attribute measures a player action or outcome from the selected statistical category. Higher normalized values mean the player is closer to the best raw value in this dataset for that attribute.",
 };
 
 function parseValue(raw) {
@@ -383,7 +383,7 @@ function percentileRank(sortedAsc, value, lowerIsBetter) {
 }
 
 /**
- * Build percentile lookup and metadata for the whole dataset.
+ * Build stat scaling lookup and metadata for the whole dataset.
  */
 export function buildDataset(rows) {
   const statKeys = Object.keys(rows[0] || {}).filter((k) => isNumericColumnKey(k, rows));
@@ -392,6 +392,7 @@ export function buildDataset(rows) {
 
   const rawByKey = {};
   const sortedByKey = {};
+  const extentByKey = {};
   const lowerFlag = {};
 
   for (const key of keys) {
@@ -405,6 +406,15 @@ export function buildDataset(rows) {
     }
     rawByKey[key] = vals;
     sortedByKey[key] = [...vals].sort((a, b) => a - b);
+    extentByKey[key] = vals.length
+      ? {
+          min: Math.min(...vals),
+          max: Math.max(...vals),
+        }
+      : {
+          min: null,
+          max: null,
+        };
   }
 
   function percentileForPlayer(row, key) {
@@ -413,6 +423,23 @@ export function buildDataset(rows) {
     const raw = parseValue(row[key]);
     if (raw === null) return null;
     return percentileRank(sorted, raw, lowerFlag[key]);
+  }
+
+  function normalizedForPlayer(row, key) {
+    const extent = extentByKey[key];
+    if (!extent || extent.min === null || extent.max === null) return null;
+    const raw = parseValue(row[key]);
+    if (raw === null) return null;
+    if (extent.max === extent.min) return 50;
+
+    const score = lowerFlag[key]
+      ? ((extent.max - raw) / (extent.max - extent.min)) * 100
+      : ((raw - extent.min) / (extent.max - extent.min)) * 100;
+    return Math.min(100, Math.max(0, score));
+  }
+
+  function rangeForStat(key) {
+    return extentByKey[key] || { min: null, max: null };
   }
 
   function rawForPlayer(row, key) {
@@ -438,6 +465,8 @@ export function buildDataset(rows) {
     rows,
     statKeys: keys,
     percentileForPlayer,
+    normalizedForPlayer,
+    rangeForStat,
     rawForPlayer,
     availableStatsCatalog,
     parseValue,

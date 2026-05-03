@@ -19,48 +19,83 @@ const http = axios.create({
 });
 
 app.use("/data", express.static(path.join(__dirname, "data")));
+app.use("/flag-icons", express.static(path.join(__dirname, "node_modules", "flag-icons")));
+app.use("/team-logos", express.static(path.join(__dirname, "Team Logos")));
+app.use("/api", (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  next();
+});
 app.use(express.static("public"));
 
 const WIKI_UA =
   "DataVizFinal/1.0 (https://github.com/; node; educational data-viz)";
 
-function normalizeDiacritics(s) {
+const EXTRA_ASCII = {
+  Æ: "AE",
+  æ: "ae",
+  Ð: "D",
+  ð: "d",
+  Þ: "Th",
+  þ: "th",
+  Ł: "L",
+  ł: "l",
+  Ø: "O",
+  ø: "o",
+  Œ: "OE",
+  œ: "oe",
+  ß: "ss",
+};
+
+function normalizeSearchText(s) {
   return String(s)
+    .replace(/[ÆæÐðÞþŁłØøŒœß]/g, (ch) => EXTRA_ASCII[ch] || ch)
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
+    .replace(/[’‘`´]/g, "'")
+    .replace(/[‐‑‒–—]/g, "-")
     .toLowerCase();
 }
 
 const _WS = /\s+/;
 
+function asciiSearchText(s) {
+  return normalizeSearchText(s)
+    .replace(/[^a-z0-9\s'-]/g, " ")
+    .replace(/[-']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function significantTokens(playerName) {
-  return normalizeDiacritics(playerName).split(_WS).filter((t) => t.length >= 3);
+  return asciiSearchText(playerName).split(_WS).filter((t) => t.length >= 3);
 }
 
 function titleMatchesPlayer(title, playerName) {
-  const nt = normalizeDiacritics(title);
+  const nt = asciiSearchText(title);
   const tokens = significantTokens(playerName);
   if (!tokens.length) {
-    return nt.includes(normalizeDiacritics(playerName).replace(/\s+/g, " ").trim());
+    return nt.includes(asciiSearchText(playerName));
   }
   return tokens.every((t) => nt.includes(t));
 }
 
 /**
  * PlaymakerStats is behind Cloudflare; Wikipedia uses list=search + name filtering
- * so we return player bios—not random season or league pages from gsrlimit=1.
+ * so we return player bios, not random season or league pages from gsrlimit=1.
  */
 async function fetchWikipediaImage(playerName) {
   const cleaned = String(playerName).replace(/\s+/g, " ").trim();
   if (!cleaned) return null;
+  const asciiName = asciiSearchText(cleaned);
+  const nameVariants = [...new Set([cleaned, asciiName].filter(Boolean))];
 
-  const langs = ["en", "es", "de", "it", "fr"];
-  const queries = [
-    `${cleaned} footballer`,
-    `${cleaned} association football`,
-    `${cleaned} football`,
-    cleaned,
-  ];
+  const langs = ["en"];
+  const queries = nameVariants.flatMap((variant) => [
+    `${variant} footballer`,
+    `${variant} association football`,
+    `${variant} football`,
+    variant,
+  ]);
 
   for (const lang of langs) {
     const base = `https://${lang}.wikipedia.org/w/api.php`;
@@ -115,6 +150,141 @@ async function fetchWikipediaImage(playerName) {
   return null;
 }
 
+function commonsFilePath(fileName, width = 400) {
+  const clean = String(fileName || "").replace(/^File:/i, "").trim();
+  if (!clean) return null;
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(clean)}?width=${width}`;
+}
+
+function footballishEntity(entity) {
+  const desc = asciiSearchText(entity?.descriptions?.en?.value || "");
+  if (/(football|soccer|goalkeeper|winger|midfielder|defender|striker)/.test(desc)) return true;
+
+  const occupationIds = new Set(
+    (entity?.claims?.P106 || [])
+      .map((claim) => claim?.mainsnak?.datavalue?.value?.id)
+      .filter(Boolean)
+  );
+  if (occupationIds.has("Q937857")) return true;
+
+  const sportIds = new Set(
+    (entity?.claims?.P641 || [])
+      .map((claim) => claim?.mainsnak?.datavalue?.value?.id)
+      .filter(Boolean)
+  );
+  return sportIds.has("Q2736");
+}
+
+async function fetchWikidataImage(playerName) {
+  const cleaned = String(playerName).replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+
+  const variants = [...new Set([cleaned, asciiSearchText(cleaned)].filter(Boolean))];
+  for (const variant of variants) {
+    const { data } = await http.get("https://www.wikidata.org/w/api.php", {
+      params: {
+        action: "wbsearchentities",
+        search: variant,
+        language: "en",
+        uselang: "en",
+        type: "item",
+        limit: 12,
+        format: "json",
+      },
+      headers: { "User-Agent": WIKI_UA },
+      timeout: 12000,
+    });
+
+    const ids = (data.search || [])
+      .filter((hit) => titleMatchesPlayer(hit.label || "", cleaned))
+      .map((hit) => hit.id)
+      .filter(Boolean);
+    if (!ids.length) continue;
+
+    const { data: entityData } = await http.get("https://www.wikidata.org/w/api.php", {
+      params: {
+        action: "wbgetentities",
+        ids: ids.join("|"),
+        props: "labels|descriptions|claims",
+        languages: "en",
+        format: "json",
+      },
+      headers: { "User-Agent": WIKI_UA },
+      timeout: 12000,
+    });
+
+    const entities = entityData.entities || {};
+    for (const id of ids) {
+      const entity = entities[id];
+      const label = entity?.labels?.en?.value || "";
+      const imageFile = entity?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
+      if (!imageFile || !titleMatchesPlayer(label, cleaned) || !footballishEntity(entity)) continue;
+      return {
+        imageUrl: commonsFilePath(imageFile),
+        profileUrl: `https://www.wikidata.org/wiki/${id}`,
+        displayName: label || cleaned,
+      };
+    }
+  }
+
+  return null;
+}
+
+function badCommonsTitle(title) {
+  return /(logo|kit|jersey|shirt|stadium|map|flag|signature|line-?up|squad|team photo|training ground)/i.test(title);
+}
+
+async function fetchCommonsImage(playerName, context = {}) {
+  const cleaned = String(playerName).replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+
+  const squad = String(context.squad || "").trim();
+  const variants = [
+    `${cleaned} footballer`,
+    `${cleaned} soccer player`,
+    squad ? `${cleaned} ${squad}` : "",
+    cleaned,
+    asciiSearchText(cleaned),
+  ].filter(Boolean);
+
+  for (const srsearch of [...new Set(variants)]) {
+    const { data } = await http.get("https://commons.wikimedia.org/w/api.php", {
+      params: {
+        action: "query",
+        generator: "search",
+        gsrnamespace: 6,
+        gsrlimit: 20,
+        gsrsearch: srsearch,
+        prop: "imageinfo",
+        iiprop: "url|mime",
+        iiurlwidth: 400,
+        format: "json",
+      },
+      headers: { "User-Agent": WIKI_UA },
+      timeout: 12000,
+    });
+
+    const pages = Object.values(data.query?.pages || {});
+    const matches = pages
+      .filter((page) => titleMatchesPlayer(page.title || "", cleaned))
+      .filter((page) => !badCommonsTitle(page.title || ""))
+      .filter((page) => (page.imageinfo?.[0]?.mime || "").startsWith("image/"));
+
+    for (const page of matches) {
+      const info = page.imageinfo?.[0];
+      const imageUrl = info?.thumburl || info?.url;
+      if (!imageUrl) continue;
+      return {
+        imageUrl,
+        profileUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent((page.title || "").replace(/ /g, "_"))}`,
+        displayName: cleaned,
+      };
+    }
+  }
+
+  return null;
+}
+
 async function fetchPlaymakerImage(name) {
   const searchUrl = `${BASE_URL}/search?search_txt=${encodeURIComponent(name)}`;
   const searchRes = await http.get(searchUrl);
@@ -153,6 +323,7 @@ async function fetchPlaymakerImage(name) {
 
 app.get("/api/player", async (req, res) => {
   const name = req.query.name;
+  const squad = req.query.squad;
   if (!name) {
     return res.status(400).json({ error: "Missing 'name' query parameter" });
   }
@@ -168,8 +339,34 @@ app.get("/api/player", async (req, res) => {
       });
     }
 
+    const wikidata = await fetchWikidataImage(name);
+    if (wikidata) {
+      return res.json({
+        name: wikidata.displayName || name,
+        profileUrl: wikidata.profileUrl,
+        imageUrl: wikidata.imageUrl,
+        source: "wikidata",
+      });
+    }
+
+    const commons = await fetchCommonsImage(name, { squad });
+    if (commons) {
+      return res.json({
+        name: commons.displayName || name,
+        profileUrl: commons.profileUrl,
+        imageUrl: commons.imageUrl,
+        source: "commons",
+      });
+    }
+
     try {
-      const pm = await fetchPlaymakerImage(name);
+      let pm = await fetchPlaymakerImage(name);
+      if (!pm) {
+        const asciiName = asciiSearchText(name);
+        if (asciiName && asciiName !== String(name).trim()) {
+          pm = await fetchPlaymakerImage(asciiName);
+        }
+      }
       if (pm) {
         return res.json({
           name: pm.displayName,

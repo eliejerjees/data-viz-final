@@ -99,7 +99,35 @@ export function createRadarChart(containerEl, options = {}) {
       const ly = Math.sin(a) * (radius + 22);
       const text = labels[i] || keys[i];
       const shortText = text.length > 22 ? text.slice(0, 20) + "…" : text;
-      const te = labelGroup
+      const control = labelGroup
+        .append("g")
+        .attr("class", "axis-label-control")
+        .attr("role", "button")
+        .attr("tabindex", 0)
+        .attr("aria-label", `Change ${text}`)
+        .style("cursor", "pointer")
+        .on("click", function (event) {
+          options.onAxisLabelClick?.({
+            event,
+            index: i,
+            key: keys[i],
+            label: text,
+            target: this,
+          });
+        })
+        .on("keydown", function (event) {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          options.onAxisLabelClick?.({
+            event,
+            index: i,
+            key: keys[i],
+            label: text,
+            target: this,
+          });
+        });
+
+      const te = control
         .append("text")
         .attr("x", lx)
         .attr("y", ly)
@@ -107,8 +135,18 @@ export function createRadarChart(containerEl, options = {}) {
         .attr("dominant-baseline", "middle")
         .attr("class", "axis-label")
         .attr("fill", "var(--text)")
-        .text(shortText);
-      te.append("title").text(text);
+        .text(`${shortText} v`);
+
+      const box = te.node().getBBox();
+      control
+        .insert("rect", "text")
+        .attr("class", "axis-label-hit")
+        .attr("x", box.x - 8)
+        .attr("y", box.y - 4)
+        .attr("width", box.width + 16)
+        .attr("height", box.height + 8)
+        .attr("rx", 6);
+      control.append("title").text(`Change ${text}`);
     });
   }
 
@@ -169,7 +207,8 @@ export function createRadarChart(containerEl, options = {}) {
             <span class="tt-key">${escapeHtml(meta.key ?? "")}</span><br/>
             <span class="tt-player">${escapeHtml(meta.playerName ?? "")}</span><br/>
             Raw: <strong>${escapeHtml(String(meta.rawExact ?? "—"))}</strong><br/>
-            Percentile: <strong>${escapeHtml(String(meta.percentileExact ?? "—"))}</strong>`
+            Score: <strong>${escapeHtml(String(meta.scoreExact ?? "—"))}</strong><br/>
+            Dataset range: <strong>${escapeHtml(String(meta.rangeExact ?? "—"))}</strong>`
           )
           .style("left", `${event.clientX + 14}px`)
           .style("top", `${event.clientY + 14}px`)
