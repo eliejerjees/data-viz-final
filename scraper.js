@@ -18,9 +18,8 @@ const http = axios.create({
   timeout: 15000,
 });
 
-app.use("/data", express.static(path.join(__dirname, "data")));
 app.use("/flag-icons", express.static(path.join(__dirname, "node_modules", "flag-icons")));
-app.use("/team-logos", express.static(path.join(__dirname, "Team Logos")));
+app.use("/team-logos", express.static(path.join(__dirname, "docs", "team-logos")));
 app.use("/api", (req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   next();

@@ -303,8 +303,7 @@ function localAssetOrigins() {
 
 function withRepoRootPath(path) {
   const clean = path.replace(/^\/+/, "");
-  const prefix = window.location.pathname.includes("/docs/") ? "../" : "";
-  return `${prefix}${clean}`;
+  return clean;
 }
 
 function teamLogoUrls(row) {
@@ -313,7 +312,7 @@ function teamLogoUrls(row) {
   const file = TEAM_LOGO_FILES[row.Squad] || `${row.Squad}.png`;
   if (!folder || !file) return [];
   const encodedPath = `${encodeURIComponent(folder)}/${encodeURIComponent(file)}`;
-  const repoPath = `Team Logos/${folder}/${file}`;
+  const repoPath = `team-logos/${folder}/${file}`;
   return [
     ...localAssetOrigins().map((origin) => `${origin}/team-logos/${encodedPath}`),
     withRepoRootPath(repoPath),
@@ -959,11 +958,7 @@ function setupRoleFilter() {
 
 async function fetchDatasetCsv() {
   const filename = "players_data_cleaned_v2.csv";
-  const attempts = [];
-  if (typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null") {
-    attempts.push(`${window.location.origin}/data/${filename}`);
-  }
-  attempts.push(`/data/${filename}`, `./data/${filename}`, new URL(`data/${filename}`, import.meta.url).href);
+  const attempts = [`./${filename}`, new URL(filename, import.meta.url).href];
 
   let lastErr;
   for (const url of attempts) {
@@ -1022,7 +1017,7 @@ async function init() {
       `Could not load <code>players_data_cleaned_v2.csv</code> (${String(err?.message || err)}). ` +
       "From the project folder run <code>npm start</code> or <code>node scraper.js</code>, then open " +
       "<code>http://localhost:3000</code> — not a local <code>file://</code> path. " +
-      "Ensure <code>data/players_data_cleaned_v2.csv</code> exists beside <code>scraper.js</code>.";
+      "Ensure <code>docs/players_data_cleaned_v2.csv</code> exists.";
   }
 }
 
