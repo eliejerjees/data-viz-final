@@ -303,7 +303,7 @@ function localAssetOrigins() {
 
 function withRepoRootPath(path) {
   const clean = path.replace(/^\/+/, "");
-  const prefix = window.location.pathname.includes("/public/") ? "../" : "";
+  const prefix = window.location.pathname.includes("/docs/") ? "../" : "";
   return `${prefix}${clean}`;
 }
 

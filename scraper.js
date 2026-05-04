@@ -25,7 +25,7 @@ app.use("/api", (req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   next();
 });
-app.use(express.static("public"));
+app.use(express.static("docs"));
 
 const WIKI_UA =
   "DataVizFinal/1.0 (https://github.com/; node; educational data-viz)";
