@@ -135,7 +135,7 @@ export function createRadarChart(containerEl, options = {}) {
         .attr("dominant-baseline", "middle")
         .attr("class", "axis-label")
         .attr("fill", "var(--text)")
-        .text(`${shortText} v`);
+        .text(`${shortText} ▾`);
 
       const box = te.node().getBBox();
       control
@@ -145,7 +145,7 @@ export function createRadarChart(containerEl, options = {}) {
         .attr("y", box.y - 4)
         .attr("width", box.width + 16)
         .attr("height", box.height + 8)
-        .attr("rx", 6);
+        .attr("rx", 2);
       control.append("title").text(`Change ${text}`);
     });
   }
@@ -162,13 +162,13 @@ export function createRadarChart(containerEl, options = {}) {
     polyGroup
       .selectAll(".poly-a")
       .transition(t)
-      .attr("fill-opacity", state.emphasis === "B" ? 0.08 : 0.28)
+      .attr("fill-opacity", state.emphasis === "B" ? 0.06 : 0.22)
       .attr("stroke-opacity", state.emphasis === "B" ? 0.35 : 1);
 
     polyGroup
       .selectAll(".poly-b")
       .transition(t)
-      .attr("fill-opacity", state.emphasis === "A" ? 0.08 : 0.28)
+      .attr("fill-opacity", state.emphasis === "A" ? 0.06 : 0.22)
       .attr("stroke-opacity", state.emphasis === "A" ? 0.35 : 1);
 
     dotGroup.selectAll(".vertex").each(function () {
@@ -244,9 +244,9 @@ export function createRadarChart(containerEl, options = {}) {
       .transition(t)
       .attr("d", polygonPath(state.playerA.values))
       .attr("fill", state.playerA.color)
-      .attr("fill-opacity", state.emphasis === "B" ? 0.08 : 0.28)
+      .attr("fill-opacity", state.emphasis === "B" ? 0.06 : 0.22)
       .attr("stroke", state.playerA.color)
-      .attr("stroke-width", 2)
+      .attr("stroke-width", 2.5)
       .attr("stroke-opacity", state.emphasis === "B" ? 0.35 : 1);
 
     let pathB = polyGroup.selectAll(".poly-b").data([0]);
@@ -257,9 +257,10 @@ export function createRadarChart(containerEl, options = {}) {
       .transition(t)
       .attr("d", polygonPath(state.playerB.values))
       .attr("fill", state.playerB.color)
-      .attr("fill-opacity", state.emphasis === "A" ? 0.08 : 0.28)
+      .attr("fill-opacity", state.emphasis === "A" ? 0.06 : 0.22)
       .attr("stroke", state.playerB.color)
-      .attr("stroke-width", 2)
+      .attr("stroke-width", 2.5)
+      .attr("stroke-dasharray", "8 7")
       .attr("stroke-opacity", state.emphasis === "A" ? 0.35 : 1);
 
     let hitA = hitGroup.selectAll(".hit-a").data([0]);
@@ -305,8 +306,9 @@ export function createRadarChart(containerEl, options = {}) {
           .attr("cy", y)
           .attr("r", 7)
           .attr("fill", pl.color)
-          .attr("stroke", "#fff")
-          .attr("stroke-width", 1.5)
+          .attr("stroke", "var(--text)")
+          .attr("stroke-width", 1.25)
+          .attr("stroke-dasharray", tag === "B" ? "3 3" : null)
           .attr(
             "opacity",
             state.emphasis && state.emphasis !== tag ? 0.35 : 1

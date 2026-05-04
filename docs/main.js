@@ -15,6 +15,8 @@ const legendA = document.getElementById("legend-a");
 const legendB = document.getElementById("legend-b");
 const warnEl = document.getElementById("comparison-warning");
 const statusEl = document.getElementById("load-status");
+const headlineA = document.getElementById("headline-a");
+const headlineB = document.getElementById("headline-b");
 const leagueStatusEl = document.getElementById("league-filter-status");
 const positionStatusEl = document.getElementById("position-filter-status");
 const roleStatusEl = document.getElementById("role-filter-status");
@@ -190,7 +192,7 @@ const FLAG_CODE_OVERRIDES = {
 };
 
 const POSITION_LABELS_BY_FILTER = {
-  all: "All positions",
+  all: "All-around",
   attacking: "Attacking",
   midfield: "Midfield",
   defending: "Defending",
@@ -672,6 +674,7 @@ function onPickPlayer(side, row) {
     imgA.alt = row.Player;
     loadSelectedPlayerImage("a", row);
     legendA.textContent = row.Player;
+    if (headlineA) headlineA.textContent = row.Player;
   } else {
     playerB = row;
     searchB.value = row.Player;
@@ -682,9 +685,17 @@ function onPickPlayer(side, row) {
     imgB.alt = row.Player;
     loadSelectedPlayerImage("b", row);
     legendB.textContent = row.Player;
+    if (headlineB) headlineB.textContent = row.Player;
   }
 
   updateChart();
+}
+
+function selectDefaultPlayers() {
+  const vinicius = dataset?.rows.find((row) => row.Player === "Vinicius Júnior");
+  const haaland = dataset?.rows.find((row) => row.Player === "Erling Haaland");
+  if (vinicius) onPickPlayer("a", vinicius);
+  if (haaland) onPickPlayer("b", haaland);
 }
 
 function hideChartAxisPicker() {
@@ -706,9 +717,11 @@ function filteredStats(query) {
   if (!q) return catalog;
   return catalog.filter((item) => {
     const label = asciiSearchText(item.label);
+    const actualName = asciiSearchText(item.actualName);
     const key = asciiSearchText(item.key);
     const category = asciiSearchText(item.category);
-    return label.includes(q) || key.includes(q) || category.includes(q);
+    const description = asciiSearchText(item.description);
+    return label.includes(q) || actualName.includes(q) || key.includes(q) || category.includes(q) || description.includes(q);
   });
 }
 
@@ -733,9 +746,13 @@ function renderChartAxisResults() {
     li.tabIndex = 0;
     li.dataset.key = item.key;
     li.setAttribute("aria-selected", String(item.key === activeKey));
-    li.innerHTML = `<span class="chart-axis-option__label">${escapeHtml(item.label)}</span><span class="chart-axis-option__meta">${escapeHtml(
-      item.category
-    )} · ${escapeHtml(item.key)}</span>`;
+    li.innerHTML = `
+      <span class="chart-axis-option__label">${escapeHtml(item.label)}</span>
+      <span class="chart-axis-option__meta">${escapeHtml(item.category)} · ${escapeHtml(item.key)} · ${escapeHtml(
+        item.actualName
+      )}</span>
+      <span class="chart-axis-option__desc">${escapeHtml(item.description)}</span>
+    `;
     li.addEventListener("click", () => applyAxisChoice(index, item.key));
     li.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
@@ -752,9 +769,9 @@ function showChartAxisPicker({ index, target }) {
   renderChartAxisResults();
 
   const rect = target.getBoundingClientRect();
-  const width = 270;
+  const width = 380;
   const left = Math.min(window.innerWidth - width - 12, Math.max(12, rect.left + rect.width / 2 - width / 2));
-  const top = Math.min(window.innerHeight - 330, Math.max(12, rect.bottom + 8));
+  const top = Math.min(window.innerHeight - 380, Math.max(12, rect.bottom + 8));
 
   chartAxisPicker.style.left = `${left}px`;
   chartAxisPicker.style.top = `${top}px`;
@@ -794,6 +811,7 @@ function clearPlayer(side) {
     imgA.src = noPhotoSvg(160, 200, "");
     imgA.alt = "";
     legendA.textContent = "Player A";
+    if (headlineA) headlineA.textContent = "Player A";
   } else {
     playerB = null;
     searchB.value = "";
@@ -804,6 +822,7 @@ function clearPlayer(side) {
     imgB.src = noPhotoSvg(160, 200, "");
     imgB.alt = "";
     legendB.textContent = "Player B";
+    if (headlineB) headlineB.textContent = "Player B";
   }
 }
 
@@ -834,13 +853,13 @@ function setupSearch(side) {
 function updateLeagueStatus() {
   if (!leagueStatusEl) return;
   const count = visibleRows().length;
-  const label = activeLeague === "all" ? "all players" : leagueLabel(activeLeague);
-  leagueStatusEl.textContent = `Showing ${count.toLocaleString()} ${label === "all players" ? label : `${label} players`}`;
+  const label = activeLeague === "all" ? "All players" : leagueLabel(activeLeague);
+  leagueStatusEl.textContent = `Pool: ${label} · ${count.toLocaleString()}`;
   if (positionStatusEl) {
-    positionStatusEl.textContent = activePosition === "all" ? "All positions" : POSITION_LABELS_BY_FILTER[activePosition];
+    positionStatusEl.textContent = `Preset: ${activePosition === "all" ? "All-around" : POSITION_LABELS_BY_FILTER[activePosition]}`;
   }
   if (roleStatusEl) {
-    roleStatusEl.textContent = activeRole === "all" ? "All roles" : ROLE_LABELS[activeRole];
+    roleStatusEl.textContent = `Role: ${activeRole === "all" ? "All roles" : ROLE_LABELS[activeRole]}`;
   }
   toggleRoleFilterBtn?.classList.toggle("is-active", activeRole !== "all" || !roleFilterBlock?.hidden);
 }
@@ -915,7 +934,7 @@ function setupRoleFilter() {
     if (roleFilterBlock) roleFilterBlock.hidden = !nextOpen;
     toggleRoleFilterBtn.setAttribute("aria-expanded", String(nextOpen));
     toggleRoleFilterBtn.classList.toggle("is-active", nextOpen || activeRole !== "all");
-    toggleRoleFilterBtn.textContent = nextOpen ? "Role estimate ▴" : "Role estimate ▾";
+    toggleRoleFilterBtn.textContent = nextOpen ? "Advanced ▴" : "Advanced ▾";
   });
 
   roleTabs.forEach((tab) => {
@@ -983,8 +1002,8 @@ async function init() {
     statusEl.textContent = `${rows.length} player-season rows · min-max normalized stats`;
 
     radar = createRadarChart(chartMount, {
-      width: 460,
-      height: 460,
+      width: 600,
+      height: 600,
       onAxisLabelClick: showChartAxisPicker,
     });
     setupLeagueFilter();
@@ -1010,7 +1029,7 @@ async function init() {
       refreshStatFocusStatus();
     });
 
-    updateChart();
+    selectDefaultPlayers();
   } catch (err) {
     console.error(err);
     statusEl.innerHTML =

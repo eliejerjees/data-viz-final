@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Big 5 Leagues — Player Radar Comparison</title>
+  <title>Big 5 Leagues Player Radar Comparison</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 </head>
@@ -12,11 +12,17 @@
 
   <header class="app-header">
     <div class="header-inner">
-      <h1>European Big 5 — Player radar</h1>
-      <p class="lede">
-        Compare two players from Premier League, La Liga, Serie A, Bundesliga, and Ligue 1.
-        Stats use min-max normalized scores (0–100) across the full dataset. Goalkeepers only compare with goalkeepers.
-      </p>
+      <p class="broadcast-kicker">Big 5 Radar Report</p>
+      <h1>
+        <span id="headline-a">Player A</span>
+        <span class="matchup-vs">vs</span>
+        <span id="headline-b">Player B</span>
+      </h1>
+      <div class="matchup-rule" aria-hidden="true">
+        <span class="matchup-rule__a"></span>
+        <span class="matchup-rule__b"></span>
+      </div>
+      <p class="lede">Player-season comparison · Min-max radar scores</p>
       <p id="load-status" class="load-status" aria-live="polite"></p>
     </div>
   </header>
@@ -26,8 +32,8 @@
 
     <section class="league-filter" aria-labelledby="league-filter-heading">
       <div class="league-filter__head">
-        <h2 id="league-filter-heading">League focus</h2>
-        <p id="league-filter-status" aria-live="polite">Showing all players</p>
+        <h2 id="league-filter-heading">League pool</h2>
+        <p id="league-filter-status" aria-live="polite">Pool: all players</p>
       </div>
       <div class="league-tabs" role="group" aria-label="Filter players by league">
         <button type="button" class="league-tab is-active" data-league="all">All players</button>
@@ -40,9 +46,16 @@
       <div class="filter-block">
         <div class="league-filter__head">
           <div>
-          <h2 id="position-filter-heading">Stat focus</h2>
-            <p id="position-filter-status" aria-live="polite">All positions</p>
+            <h2 id="position-filter-heading">Radar preset</h2>
+            <p id="position-filter-status" aria-live="polite">Preset: all-around</p>
           </div>
+        </div>
+        <div class="league-tabs" role="group" aria-label="Set radar axes by broad position">
+          <button type="button" class="position-tab is-active" data-position="all">All-around</button>
+          <button type="button" class="position-tab" data-position="attacking">Attacking</button>
+          <button type="button" class="position-tab" data-position="midfield">Midfield</button>
+          <button type="button" class="position-tab" data-position="defending">Defending</button>
+          <button type="button" class="position-tab" data-position="goalkeeping">Goalkeeping</button>
           <button
             type="button"
             id="toggle-role-filter"
@@ -50,21 +63,14 @@
             aria-expanded="false"
             aria-controls="role-filter-block"
           >
-            Role estimate ▾
+            Advanced ▾
           </button>
-        </div>
-        <div class="league-tabs" role="group" aria-label="Set radar axes by broad position">
-          <button type="button" class="position-tab is-active" data-position="all">All positions</button>
-          <button type="button" class="position-tab" data-position="attacking">Attacking</button>
-          <button type="button" class="position-tab" data-position="midfield">Midfield</button>
-          <button type="button" class="position-tab" data-position="defending">Defending</button>
-          <button type="button" class="position-tab" data-position="goalkeeping">Goalkeeping</button>
         </div>
       </div>
       <div id="role-filter-block" class="filter-block role-filter-block" hidden>
         <div class="league-filter__head">
-          <h2 id="role-filter-heading">Role estimate</h2>
-          <p id="role-filter-status" aria-live="polite">All roles</p>
+          <h2 id="role-filter-heading">Advanced presets</h2>
+          <p id="role-filter-status" aria-live="polite">Role: all roles</p>
         </div>
         <div class="league-tabs" role="group" aria-label="Filter players by estimated role">
           <button type="button" class="role-tab is-active" data-role="all">All roles</button>
