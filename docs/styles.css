@@ -6,7 +6,12 @@
   --surface-glass: rgba(18, 20, 23, 0.72);
   --text: #f4f4f5;
   --text-muted: #a1a1aa;
-  --text-dim: #71717a;
+  /*
+   * ACCESSIBILITY (Feature 3): --text-dim was #71717a (~4.1:1 on --bg),
+   * which falls below the WCAG AA threshold of 4.5:1 for normal-size text.
+   * Raised to #8d8d9a (~6.1:1 on --bg) to meet AA at all used font sizes.
+   */
+  --text-dim: #8d8d9a;
   --border: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.18);
   --player-a: #facc15;
@@ -21,6 +26,9 @@
   --shadow-soft: 0 18px 60px rgba(0, 0, 0, 0.34);
   --radius-sm: 6px;
   --radius-md: 10px;
+  /* Differential tooltip colours — WCAG AA against the dark tooltip surface */
+  --tt-pos: #4ade80;   /* green-400  ~8:1 on tooltip bg */
+  --tt-neg: #f87171;   /* red-400    ~6:1 on tooltip bg */
 }
 
 *,
@@ -129,17 +137,21 @@ input {
   background: var(--player-b);
 }
 
+/* ACCESSIBILITY (Feature 3): bumped weight from 500→600 so small subtitle
+   text reads clearly without relying solely on colour for legibility. */
 .lede {
   margin: 0.2rem auto 0;
   color: var(--text-muted);
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .load-status {
   margin: 0.1rem 0 0;
+  /* Uses --text-dim which is now #8d8d9a (6.1:1 contrast). */
   color: var(--text-dim);
   font-size: 0.74rem;
+  font-weight: 600;
 }
 
 .layout {
@@ -199,11 +211,13 @@ input {
   text-transform: uppercase;
 }
 
+/* ACCESSIBILITY (Feature 3): small filter-status text; weight 700 keeps it
+   readable at 0.78rem without needing to change the colour. */
 .league-filter p {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.78rem;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .league-tabs {
@@ -311,12 +325,14 @@ input {
   padding: 0;
 }
 
+/* ACCESSIBILITY (Feature 3): label text is small (0.78rem); keeping weight
+   at 700 ensures it stays legible against its background (~8:1 contrast). */
 .player-search label {
   display: block;
   margin-bottom: 0.38rem;
   color: var(--text-muted);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .autocomplete {
@@ -385,9 +401,12 @@ input {
   font-weight: 750;
 }
 
+/* ACCESSIBILITY (Feature 3): 0.72rem is very small — weight 600 compensates
+   to keep the squad / league / position line legible in the dropdown. */
 .ac-meta {
   color: var(--text-muted);
   font-size: 0.72rem;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -532,6 +551,55 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  /* Clickable — cursor and transitions set for lock interaction */
+  cursor: pointer;
+  user-select: none;
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: opacity 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+.legend-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.legend-item:focus-visible {
+  outline: 2px solid rgba(250, 204, 21, 0.74);
+  outline-offset: 2px;
+}
+
+/* LOCKED: the actively focused player — highlighted border, full opacity */
+.legend-item.is-locked {
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font-weight: 800;
+}
+
+.legend-item.legend-a.is-locked {
+  border-color: rgba(250, 204, 21, 0.55);
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.legend-item.legend-b.is-locked {
+  border-color: rgba(59, 130, 246, 0.55);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* DIMMED: the other player — faded to show it's locked out */
+.legend-item.is-dimmed {
+  opacity: 0.38;
+}
+
+/* Small instructional hint below the legend */
+.radar-lock-hint {
+  margin: 0.3rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.01em;
 }
 
 .swatch {
@@ -556,40 +624,111 @@ input {
   font-size: 0.78rem;
 }
 
+/* ACCESSIBILITY (Feature 3): footer is 0.72rem; --text-dim now 6.1:1,
+   weight 600 adds legibility at this small size. */
 .app-footer {
   max-width: 1480px;
   margin: 0 auto;
   padding: 0.25rem 1.25rem 1rem;
   color: var(--text-dim);
   font-size: 0.72rem;
+  font-weight: 600;
 }
 
+/*
+ * ACCESSIBILITY (Feature 3): Tooltip text was previously 0.8rem with some
+ * elements using --text-muted (~8:1) and --text-dim (was ~4.1:1, now fine).
+ * Bumped base size to 0.84rem and tightened line-height for denser diffs.
+ * All text now meets WCAG AA against the near-opaque dark background.
+ */
 .radar-tooltip {
-  max-width: 280px;
-  padding: 0.62rem 0.75rem;
-  border: 1px solid var(--border);
+  max-width: 300px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: rgba(18, 20, 23, 0.96);
+  background: rgba(14, 16, 19, 0.97);
   color: var(--text);
   box-shadow: var(--shadow-soft);
-  font-size: 0.8rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
   pointer-events: none;
 }
 
-.radar-tooltip .tt-player {
-  color: var(--text-muted);
-  font-size: 0.76rem;
+/* Stat name heading inside tooltip */
+.radar-tooltip .tt-stat-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 800;
+  margin-bottom: 0.1rem;
 }
 
+/* Player name line — muted but still ~8:1 on the dark tooltip surface */
+.radar-tooltip .tt-player {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+/* Stat key in monospace — yellow gives clear visual anchor */
 .radar-tooltip .tt-key {
+  display: block;
   color: var(--player-a);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  margin-bottom: 0.05rem;
 }
 
+/* Generic row within a tooltip section */
+.radar-tooltip .tt-row {
+  display: block;
+  font-weight: 500;
+}
+
+/*
+ * DIFFERENTIAL TOOLTIP (Feature 2): visual separator between the main
+ * stat block and the differential comparison block.
+ */
+.radar-tooltip .tt-section {
+  margin-top: 0.3rem;
+}
+
+.radar-tooltip .tt-section--diff {
+  margin-top: 0.45rem;
+  padding-top: 0.42rem;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* Range footer, de-emphasised but still readable (--text-dim is now 6.1:1) */
+.radar-tooltip .tt-range {
+  margin-top: 0.42rem;
+  padding-top: 0.38rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+/*
+ * ACCESSIBILITY + FEATURE 2: Positive / negative differential colours.
+ * Both chosen for ≥ 6:1 contrast against the tooltip background.
+ */
+.radar-tooltip .tt-pos {
+  color: var(--tt-pos);
+}
+
+.radar-tooltip .tt-neg {
+  color: var(--tt-neg);
+}
+
+/* ACCESSIBILITY (Feature 3): 11px is small — keeping weight at 800 and
+   using var(--text) fill (set in radarChart.js drawAxes) ensures ~19:1
+   contrast on the dark chart background. */
 .axis-label {
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 800;
   pointer-events: none;
 }
 
@@ -680,10 +819,14 @@ input {
   line-height: 1.25;
 }
 
+/* ACCESSIBILITY (Feature 3): description text is 0.72rem — using --text-dim
+   which is now #8d8d9a (6.1:1) keeps it readable. Weight bump to 550 adds
+   a small extra legibility boost at this small size. */
 .chart-axis-option__desc {
   margin-top: 0.2rem;
   color: var(--text-dim);
   font-size: 0.72rem;
+  font-weight: 550;
   line-height: 1.28;
 }
 

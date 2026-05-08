@@ -24,6 +24,17 @@ export function createRadarChart(containerEl, options = {}) {
 
   const g = svg.append("g").attr("transform", `translate(${cx},${cy})`);
 
+  // Transparent full-SVG rect sitting below every other element.
+  // Clicking empty space clears the radar lock without interfering with
+  // polygon / dot click handlers (those call stopPropagation).
+  svg
+    .insert("rect", ":first-child")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("fill", "transparent")
+    .style("cursor", "default")
+    .on("click.bg", clearLock);
+
   const levels = 5;
   const levelGroup = g.append("g").attr("class", "radar-levels");
 
@@ -76,6 +87,12 @@ export function createRadarChart(containerEl, options = {}) {
     playerA: { name: "Player A", color: "var(--player-a)", values: [], meta: [] },
     playerB: { name: "Player B", color: "var(--player-b)", values: [], meta: [] },
     emphasis: null,
+    /**
+     * RADAR LOCK — null means no lock, "A" or "B" means that player's
+     * radar is "focused": the other polygon is heavily dimmed and its
+     * dots have pointer-events disabled so tooltips never mis-fire.
+     */
+    lockedTag: null,
   };
 
   function drawAxes(keys, labels) {
@@ -155,27 +172,80 @@ export function createRadarChart(containerEl, options = {}) {
     return line(pts);
   }
 
-  /** Update fill/stroke/dot opacity only — keeps DOM nodes alive for tooltips */
+  /**
+   * Update fill / stroke / dot opacity only — keeps DOM nodes alive for tooltips.
+   *
+   * When a lock is active the "effective emphasis" comes from lockedTag (not
+   * just the transient hover state), and dimming is much stronger so the
+   * focused radar stands out clearly.
+   */
   function refreshEmphasis(transition) {
     const t = transition ?? d3.transition().duration(0);
+
+    // Lock takes priority over hover emphasis; when locked the contrast is
+    // cranked up so it's obvious which player is focused.
+    const locked   = state.lockedTag !== null;
+    const effective = state.lockedTag ?? state.emphasis;
+
+    const dimFill   = locked ? 0.03 : 0.06;
+    const dimStroke = locked ? 0.12 : 0.35;
+    const dimDot    = locked ? 0.10 : 0.35;
 
     polyGroup
       .selectAll(".poly-a")
       .transition(t)
-      .attr("fill-opacity", state.emphasis === "B" ? 0.06 : 0.22)
-      .attr("stroke-opacity", state.emphasis === "B" ? 0.35 : 1);
+      .attr("fill-opacity",   effective === "B" ? dimFill   : 0.22)
+      .attr("stroke-opacity", effective === "B" ? dimStroke : 1);
 
     polyGroup
       .selectAll(".poly-b")
       .transition(t)
-      .attr("fill-opacity", state.emphasis === "A" ? 0.06 : 0.22)
-      .attr("stroke-opacity", state.emphasis === "A" ? 0.35 : 1);
+      .attr("fill-opacity",   effective === "A" ? dimFill   : 0.22)
+      .attr("stroke-opacity", effective === "A" ? dimStroke : 1);
 
     dotGroup.selectAll(".vertex").each(function () {
       const tag = d3.select(this).attr("data-tag");
-      const dim = state.emphasis && state.emphasis !== tag;
-      d3.select(this).attr("opacity", dim ? 0.35 : 1);
+      const dim = effective && effective !== tag;
+      d3.select(this).attr("opacity", dim ? dimDot : 1);
     });
+  }
+
+  /**
+   * Disable pointer-events on dots belonging to the dimmed / locked-out player
+   * so they cannot accidentally capture hover events through the active layer.
+   * Called whenever lockedTag changes and after every renderDots() rebuild.
+   */
+  function updateDotPointerEvents() {
+    dotGroup.selectAll(".vertex").each(function () {
+      const tag     = d3.select(this).attr("data-tag");
+      const blocked = state.lockedTag !== null && tag !== state.lockedTag;
+      d3.select(this).style("pointer-events", blocked ? "none" : "all");
+    });
+  }
+
+  /**
+   * Toggle the radar lock for the given tag:
+   *   - If that player is already locked → clear the lock.
+   *   - If the other player is locked, or nothing is locked → lock this player.
+   * Fires the optional onLockChange(lockedTag) callback so the host page
+   * (main.js) can update legend styling.
+   */
+  function toggleLock(tag) {
+    state.lockedTag = state.lockedTag === tag ? null : tag;
+    const t = d3.transition().duration(180).ease(d3.easeCubicOut);
+    refreshEmphasis(t);
+    updateDotPointerEvents();
+    options.onLockChange?.(state.lockedTag);
+  }
+
+  /** Clear the lock entirely (background click). */
+  function clearLock() {
+    if (state.lockedTag === null) return;
+    state.lockedTag = null;
+    const t = d3.transition().duration(180).ease(d3.easeCubicOut);
+    refreshEmphasis(t);
+    updateDotPointerEvents();
+    options.onLockChange?.(null);
   }
 
   function wireHitHandlers(hitSel, tag) {
@@ -184,12 +254,61 @@ export function createRadarChart(containerEl, options = {}) {
       .style("cursor", "pointer")
       .on("mouseenter.hit", () => {
         state.emphasis = tag;
-        refreshEmphasis(d3.transition().duration(120));
+        // Don't override a lock with transient hover emphasis
+        if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
       })
       .on("mouseleave.hit", () => {
         state.emphasis = null;
-        refreshEmphasis(d3.transition().duration(120));
+        if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
+      })
+      // Click on a polygon area toggles the radar lock for that player.
+      // stopPropagation prevents the background-clear rect from also firing.
+      .on("click.hit", (event) => {
+        event.stopPropagation();
+        toggleLock(tag);
       });
+  }
+
+  /**
+   * DIFFERENTIAL TOOLTIP (Feature 2)
+   * Builds the inner HTML for a vertex tooltip.
+   * When the datum carries rawDiffStr / scoreDiffStr (populated by buildMeta
+   * in main.js when a second player is selected), an extra section is appended
+   * that shows signed raw and score differentials vs. the other player.
+   * Positive diffs get the "tt-pos" class (green), negatives get "tt-neg" (red).
+   */
+  function buildTooltipHtml(meta) {
+    const esc = escapeHtml;
+
+    // Core rows — always present
+    let html = `
+      <strong class="tt-stat-name">${esc(meta.label ?? "")}</strong>
+      <span class="tt-key">${esc(meta.key ?? "")}</span>
+      <span class="tt-player">${esc(meta.playerName ?? "")}</span>
+      <div class="tt-section">
+        <div class="tt-row">Raw&nbsp;<strong>${esc(String(meta.rawExact ?? "—"))}</strong></div>
+        <div class="tt-row">Score&nbsp;<strong>${esc(String(meta.scoreExact ?? "—"))}</strong></div>
+      </div>`;
+
+    // Differential section — only when comparison data is available
+    if (meta.rawDiffStr != null || meta.scoreDiffStr != null) {
+      const rawClass   = (meta.rawDiff   ?? 0) >= 0 ? "tt-pos" : "tt-neg";
+      const scoreClass = (meta.scoreDiff ?? 0) >= 0 ? "tt-pos" : "tt-neg";
+
+      html += `<div class="tt-section tt-section--diff">`;
+      if (meta.rawDiffStr != null) {
+        html += `<div class="tt-row">Raw diff&nbsp;<strong class="${rawClass}">${esc(meta.rawDiffStr)}</strong></div>`;
+      }
+      if (meta.scoreDiffStr != null) {
+        html += `<div class="tt-row">Score diff&nbsp;<strong class="${scoreClass}">${esc(meta.scoreDiffStr)}</strong></div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Range footer
+    html += `<div class="tt-range">Range&nbsp;${esc(String(meta.rangeExact ?? "—"))}</div>`;
+
+    return html;
   }
 
   function wireDotHandlers(circle, tag) {
@@ -202,14 +321,7 @@ export function createRadarChart(containerEl, options = {}) {
         refreshEmphasis(d3.transition().duration(120));
         const meta = d3.select(this).datum();
         tooltip
-          .html(
-            `<strong>${escapeHtml(meta.label ?? "")}</strong><br/>
-            <span class="tt-key">${escapeHtml(meta.key ?? "")}</span><br/>
-            <span class="tt-player">${escapeHtml(meta.playerName ?? "")}</span><br/>
-            Raw: <strong>${escapeHtml(String(meta.rawExact ?? "—"))}</strong><br/>
-            Score: <strong>${escapeHtml(String(meta.scoreExact ?? "—"))}</strong><br/>
-            Dataset range: <strong>${escapeHtml(String(meta.rangeExact ?? "—"))}</strong>`
-          )
+          .html(buildTooltipHtml(meta))
           .style("left", `${event.clientX + 14}px`)
           .style("top", `${event.clientY + 14}px`)
           .style("opacity", 1);
@@ -220,8 +332,13 @@ export function createRadarChart(containerEl, options = {}) {
       .on("mouseleave.dot", function (event) {
         event.stopPropagation();
         state.emphasis = null;
-        refreshEmphasis(d3.transition().duration(120));
+        if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
         tooltip.style("opacity", 0);
+      })
+      // Clicking a dot also locks the radar to that player
+      .on("click.dot", (event) => {
+        event.stopPropagation();
+        toggleLock(tag);
       });
   }
 
@@ -276,6 +393,8 @@ export function createRadarChart(containerEl, options = {}) {
     wireHitHandlers(hitB, "B");
 
     renderDots();
+    // Re-apply lock state to freshly created dot elements after every rebuild
+    updateDotPointerEvents();
   }
 
   function renderDots() {
@@ -342,6 +461,19 @@ export function createRadarChart(containerEl, options = {}) {
       drawAxes(state.axisKeys, state.labels);
       renderGeometry(trans);
     },
+
+    /**
+     * Programmatically set the radar lock from outside the chart (e.g. a
+     * legend click in main.js).  Pass "A", "B", or null to clear.
+     */
+    setLock(tag) {
+      if (tag === null) {
+        clearLock();
+      } else {
+        toggleLock(tag);
+      }
+    },
+
     destroy() {
       tooltip.remove();
       svg.remove();

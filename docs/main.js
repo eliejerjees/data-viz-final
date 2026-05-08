@@ -230,6 +230,39 @@ const ROLE_PRESETS = {
   goalkeeper: ["Saves", "Save%", "CS", "GA", "PSxG", "Stp"],
 };
 
+/**
+ * DEFAULT PLAYER SELECTION (Feature 1)
+ * Priority-ordered pools of notable 2024/25 players per league.
+ * selectLeagueDefaults() walks each pool and picks the first two
+ * names that actually exist in the loaded CSV dataset.
+ * Falls back to the first two rows in the league if none are found.
+ */
+const LEAGUE_PLAYER_POOLS = {
+  "all": [
+    "Vinicius Júnior", "Erling Haaland", "Kylian Mbappé", "Mohamed Salah",
+  ],
+  "eng Premier League": [
+    "Mohamed Salah", "Erling Haaland", "Cole Palmer", "Bukayo Saka",
+    "Alexander Isak", "Ollie Watkins", "Phil Foden", "Son Heung-min",
+  ],
+  "es La Liga": [
+    "Vinicius Júnior", "Jude Bellingham", "Kylian Mbappé", "Robert Lewandowski",
+    "Lamine Yamal", "Pedri", "Arda Güler", "Dani Carvajal",
+  ],
+  "it Serie A": [
+    "Lautaro Martínez", "Ademola Lookman", "Romelu Lukaku", "Dušan Vlahović",
+    "Moise Kean", "Paulo Dybala", "Khvicha Kvaratskhelia", "Marcus Thuram",
+  ],
+  "de Bundesliga": [
+    "Harry Kane", "Florian Wirtz", "Jamal Musiala", "Serhou Guirassy",
+    "Omar Marmoush", "Leroy Sané", "Michael Olise", "Viktor Gyökeres",
+  ],
+  "fr Ligue 1": [
+    "Bradley Barcola", "Jonathan David", "Achraf Hakimi", "Gonçalo Ramos",
+    "Mason Greenwood", "Amine Harit", "Désiré Doué", "Rayan Cherki",
+  ],
+};
+
 function formatRaw(key, raw) {
   if (raw === null || raw === undefined || Number.isNaN(raw)) return "—";
   if (key.includes("%") || key === "SoT%" || key === "Cmp%" || key === "Save%" || key === "CS%") {
@@ -576,11 +609,53 @@ function applyRecommendedAxes() {
   }
 }
 
-function buildMeta(row, keys) {
+/**
+ * Build per-axis metadata for a player, optionally including differential
+ * values compared to the other player (Feature 2 — Differential Tooltip).
+ *
+ * @param {object}      row      - The primary player's dataset row.
+ * @param {string[]}    keys     - The active radar axis keys.
+ * @param {object|null} otherRow - The comparison player's row, or null when
+ *                                 only one player is selected (no diff shown).
+ */
+function buildMeta(row, keys, otherRow = null) {
   return keys.map((key) => {
-    const raw = dataset.rawForPlayer(row, key);
+    const raw   = dataset.rawForPlayer(row, key);
     const score = dataset.normalizedForPlayer(row, key);
     const range = dataset.rangeForStat(key);
+
+    // --- Differential calculations ---
+    // Compare this player's raw value and normalized score against the other
+    // player on the same axis. Both rawDiff and scoreDiff are kept as raw
+    // numbers so radarChart.js can colour-code them; the pre-formatted strings
+    // avoid duplicating formatting logic inside the chart module.
+    let rawDiff     = null;
+    let scoreDiff   = null;
+    let rawDiffStr  = null;
+    let scoreDiffStr = null;
+
+    if (otherRow) {
+      const otherRaw   = dataset.rawForPlayer(otherRow, key);
+      const otherScore = dataset.normalizedForPlayer(otherRow, key);
+
+      if (raw != null && !Number.isNaN(Number(raw)) &&
+          otherRaw != null && !Number.isNaN(Number(otherRaw))) {
+        rawDiff = Number(raw) - Number(otherRaw);
+        // Re-use formatRaw on the absolute value then prepend the sign,
+        // so percentage-type stats still render with their "%" suffix.
+        const sign = rawDiff >= 0 ? "+" : "-";
+        rawDiffStr = sign + formatRaw(key, Math.abs(rawDiff));
+      }
+
+      if (score != null && !Number.isNaN(Number(score)) &&
+          otherScore != null && !Number.isNaN(Number(otherScore))) {
+        scoreDiff = Number(score) - Number(otherScore);
+        // Scores are 0–100 normalized points; show as "±X.X pts"
+        const sign = scoreDiff >= 0 ? "+" : "";
+        scoreDiffStr = `${sign}${scoreDiff.toFixed(1)} pts`;
+      }
+    }
+
     return {
       key,
       label: statLabel(key),
@@ -591,6 +666,11 @@ function buildMeta(row, keys) {
         range?.min == null || range?.max == null
           ? "N/A"
           : `${formatRawExact(key, range.min)} to ${formatRawExact(key, range.max)}`,
+      // Differential data (null when no comparison player is selected)
+      rawDiff,
+      scoreDiff,
+      rawDiffStr,
+      scoreDiffStr,
     };
   });
 }
@@ -651,13 +731,15 @@ function updateChart() {
       name: playerA?.Player ?? "Player A",
       color: "var(--player-a)",
       values: valsA,
-      meta: playerA ? buildMeta(playerA, axisKeys) : axisKeys.map(() => ({})),
+      // Pass playerB as the comparison reference so differential tooltips work (Feature 2)
+      meta: playerA ? buildMeta(playerA, axisKeys, playerB) : axisKeys.map(() => ({})),
     },
     playerB: {
       name: playerB?.Player ?? "Player B",
       color: "var(--player-b)",
       values: valsB,
-      meta: playerB ? buildMeta(playerB, axisKeys) : axisKeys.map(() => ({})),
+      // Pass playerA as the comparison reference so differential tooltips work (Feature 2)
+      meta: playerB ? buildMeta(playerB, axisKeys, playerA) : axisKeys.map(() => ({})),
     },
     transitionMs: 450,
   });
@@ -696,6 +778,55 @@ function selectDefaultPlayers() {
   const haaland = dataset?.rows.find((row) => row.Player === "Erling Haaland");
   if (vinicius) onPickPlayer("a", vinicius);
   if (haaland) onPickPlayer("b", haaland);
+}
+
+/**
+ * DEFAULT PLAYER SELECTION PER LEAGUE (Feature 1)
+ *
+ * Called whenever the active league filter changes.  Walks the priority pool
+ * for the chosen league (LEAGUE_PLAYER_POOLS) and picks the first two player
+ * names that exist in the loaded dataset.  Falls back to the first two rows
+ * for that league if none of the named candidates are found.
+ *
+ * This function is ONLY called from the league-tab click handler, ensuring
+ * defaults fire on league change but never override manual player selections.
+ */
+function selectLeagueDefaults(league) {
+  if (!dataset) return;
+
+  const pool = LEAGUE_PLAYER_POOLS[league] ?? [];
+  const leagueRows = league === "all"
+    ? dataset.rows
+    : dataset.rows.filter((r) => r.Comp === league);
+
+  // Walk the priority pool and collect the first two distinct matches
+  const found = [];
+  for (const name of pool) {
+    const row = leagueRows.find((r) => r.Player === name);
+    if (row && !found.includes(row)) {
+      found.push(row);
+      if (found.length === 2) break;
+    }
+  }
+
+  // If the named pool didn't yield two players, fill from the league roster
+  if (found.length < 2) {
+    for (const row of leagueRows) {
+      if (!found.includes(row)) {
+        found.push(row);
+        if (found.length === 2) break;
+      }
+    }
+  }
+
+  if (found[0]) onPickPlayer("a", found[0]);
+  if (found[1]) onPickPlayer("b", found[1]);
+
+  // After both players are set, apply position-appropriate axes and re-render
+  if (found[0] && found[1]) {
+    applyRecommendedAxes();
+    updateChart();
+  }
 }
 
 function hideChartAxisPicker() {
@@ -895,6 +1026,11 @@ function setupLeagueFilter() {
       });
 
       refreshPlayerSearches();
+
+      // Auto-select two notable defaults whenever the league filter changes (Feature 1).
+      // refreshPlayerSearches() may have already cleared out-of-league players, so
+      // selectLeagueDefaults() runs after to populate both slots fresh.
+      selectLeagueDefaults(activeLeague);
     });
   });
   updateLeagueStatus();
@@ -1001,11 +1137,58 @@ async function init() {
     catalog = dataset.availableStatsCatalog();
     statusEl.textContent = `${rows.length} player-season rows · min-max normalized stats`;
 
+    // Outer wrapper elements for the two legend items (contain swatch + text span)
+    const legendItemA = legendA.closest(".legend-item");
+    const legendItemB = legendB.closest(".legend-item");
+
+    /**
+     * RADAR LOCK — called by radarChart whenever the lock state changes.
+     * Applies is-locked / is-dimmed CSS classes to the legend items so the
+     * user gets clear visual feedback about which radar is focused.
+     */
+    function handleLockChange(lockedTag) {
+      if (!legendItemA || !legendItemB) return;
+
+      legendItemA.classList.toggle("is-locked", lockedTag === "A");
+      legendItemA.classList.toggle("is-dimmed", lockedTag === "B");
+      legendItemB.classList.toggle("is-locked", lockedTag === "B");
+      legendItemB.classList.toggle("is-dimmed", lockedTag === "A");
+
+      // Update the hint text below the legend
+      const hint = document.getElementById("radar-lock-hint");
+      if (hint) {
+        hint.textContent = lockedTag
+          ? "Click the focused radar, a dot, or the chart background to release"
+          : "Click a radar polygon or legend label to focus it";
+      }
+    }
+
     radar = createRadarChart(chartMount, {
       width: 600,
       height: 600,
       onAxisLabelClick: showChartAxisPicker,
+      onLockChange: handleLockChange,
     });
+
+    // Make legend items clickable to toggle the radar lock
+    if (legendItemA) {
+      legendItemA.setAttribute("role", "button");
+      legendItemA.setAttribute("tabindex", "0");
+      legendItemA.title = "Click to focus Player A radar";
+      legendItemA.addEventListener("click", () => radar.setLock("A"));
+      legendItemA.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); radar.setLock("A"); }
+      });
+    }
+    if (legendItemB) {
+      legendItemB.setAttribute("role", "button");
+      legendItemB.setAttribute("tabindex", "0");
+      legendItemB.title = "Click to focus Player B radar";
+      legendItemB.addEventListener("click", () => radar.setLock("B"));
+      legendItemB.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); radar.setLock("B"); }
+      });
+    }
     setupLeagueFilter();
     setupPositionFilter();
     setupRoleFilter();
