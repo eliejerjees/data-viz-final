@@ -39,7 +39,9 @@ const identityB = document.getElementById("identity-b");
 const metaA = document.getElementById("meta-a");
 const metaB = document.getElementById("meta-b");
 
-const resetBtn = document.getElementById("reset-stats");
+const resetBtn  = document.getElementById("reset-stats");
+const rankBtnA  = document.getElementById("rank-btn-a");
+const rankBtnB  = document.getElementById("rank-btn-b");
 const chartAxisPicker = document.createElement("div");
 chartAxisPicker.className = "chart-axis-picker";
 chartAxisPicker.hidden = true;
@@ -66,6 +68,17 @@ let radar = null;
 let activeLeague = "all";
 let activePosition = "all";
 let activeRole = "all";
+
+/**
+ * POSITION SEARCH FILTERS (Feature 2)
+ * Per-side Sets of selected position codes (e.g. {"FW","MF"}).
+ * An empty Set means "all positions" — no filtering applied.
+ * Kept separate per panel so Player A and Player B can be filtered
+ * independently (e.g. A → FW only, B → GK only).
+ */
+const posFilterA = new Set();
+const posFilterB = new Set();
+
 const photoCache = new Map();
 const photoSrcCache = new Map();
 const photoQueue = [];
@@ -426,11 +439,25 @@ function rowMatchesActiveLeague(row) {
   return activeLeague === "all" || row?.Comp === activeLeague;
 }
 
-function filterPlayers(q) {
+/**
+ * Filter the player pool by name query and an optional position filter Set.
+ *
+ * posFilter (Feature 2): a Set of position codes such as {"FW","MF"}.
+ * A player matches if ANY of their listed positions (comma-separated in the
+ * CSV) appears in the Set.  An empty / null Set means "all positions".
+ * This filter is per-side (posFilterA / posFilterB) and is independent of
+ * the league pool and radar-preset axis filters.
+ */
+function filterPlayers(q, posFilter = null) {
   if (!dataset) return [];
   const qq = asciiSearchText(q);
   const out = [];
   for (const row of visibleRows()) {
+    // Position filter: match any position the player plays
+    if (posFilter && posFilter.size > 0) {
+      const positions = String(row.Pos || "").split(",").map((p) => p.trim());
+      if (!positions.some((p) => posFilter.has(p))) continue;
+    }
     if (!qq || asciiSearchText(row.Player).includes(qq)) {
       out.push(row);
       if (out.length >= 40) break;
@@ -757,6 +784,8 @@ function onPickPlayer(side, row) {
     loadSelectedPlayerImage("a", row);
     legendA.textContent = row.Player;
     if (headlineA) headlineA.textContent = row.Player;
+    // Show the manual rankings button now that a player is loaded (Feature 3)
+    if (rankBtnA) rankBtnA.hidden = false;
   } else {
     playerB = row;
     searchB.value = row.Player;
@@ -768,6 +797,7 @@ function onPickPlayer(side, row) {
     loadSelectedPlayerImage("b", row);
     legendB.textContent = row.Player;
     if (headlineB) headlineB.textContent = row.Player;
+    if (rankBtnB) rankBtnB.hidden = false;
   }
 
   updateChart();
@@ -943,6 +973,8 @@ function clearPlayer(side) {
     imgA.alt = "";
     legendA.textContent = "Player A";
     if (headlineA) headlineA.textContent = "Player A";
+    // Hide rankings button when no player is selected (Feature 3)
+    if (rankBtnA) rankBtnA.hidden = true;
   } else {
     playerB = null;
     searchB.value = "";
@@ -954,30 +986,79 @@ function clearPlayer(side) {
     imgB.alt = "";
     legendB.textContent = "Player B";
     if (headlineB) headlineB.textContent = "Player B";
+    if (rankBtnB) rankBtnB.hidden = true;
   }
 }
 
 function setupSearch(side) {
-  const input = side === "a" ? searchA : searchB;
-  const list = side === "a" ? listA : listB;
+  const input     = side === "a" ? searchA : searchB;
+  const list      = side === "a" ? listA   : listB;
+  const posFilter = side === "a" ? posFilterA : posFilterB;
 
-  input.addEventListener("input", () => {
-    const rows = filterPlayers(input.value.trim());
+  // Shared refresh — re-runs whenever query text or position filter changes
+  function refresh() {
+    const rows = filterPlayers(input.value.trim(), posFilter);
     renderList(list, rows, (row) => onPickPlayer(side, row));
-    input.setAttribute("aria-expanded", String(rows.length > 0));
-  });
+    list.hidden = rows.length === 0;
+    input.setAttribute("aria-expanded", String(rows.length > 0 && !list.hidden));
+  }
 
-  input.addEventListener("focus", () => {
-    const rows = filterPlayers(input.value.trim());
-    renderList(list, rows, (row) => onPickPlayer(side, row));
-    input.setAttribute("aria-expanded", String(rows.length > 0));
-  });
+  input.addEventListener("input", refresh);
+  input.addEventListener("focus", refresh);
 
   document.addEventListener("click", (e) => {
     if (!input.contains(e.target) && !list.contains(e.target)) {
       list.hidden = true;
       input.setAttribute("aria-expanded", "false");
     }
+  });
+
+  // Wire the position filter button group for this panel (Feature 2)
+  setupPositionSearchFilter(side, refresh);
+}
+
+/**
+ * POSITION SEARCH FILTER SETUP (Feature 2)
+ *
+ * Wires the five position-filter buttons (All · FW · MF · DF · GK) for one
+ * player panel.  FW/MF/DF/GK are multi-select — clicking several keeps all
+ * active.  Clicking "All" clears the filter entirely.  Clicking an active
+ * specific-position button deactivates it; if no specific positions remain
+ * active the filter automatically reverts to "all".
+ *
+ * The active position set (posFilterA / posFilterB) is a module-level Set so
+ * refreshPlayerSearches() can also access it when the league changes.
+ */
+function setupPositionSearchFilter(side, refreshFn) {
+  const group     = document.getElementById(`pos-filter-${side}`);
+  if (!group) return;
+  const posFilter = side === "a" ? posFilterA : posFilterB;
+
+  group.querySelectorAll(".pos-filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const pos = btn.dataset.pos;
+
+      if (pos === "all") {
+        // Clear all specific-position selections
+        posFilter.clear();
+      } else {
+        // Toggle this position
+        if (posFilter.has(pos)) posFilter.delete(pos);
+        else posFilter.add(pos);
+      }
+
+      // Sync aria-pressed and is-active state on every button in this group
+      group.querySelectorAll(".pos-filter-btn").forEach((b) => {
+        const active =
+          b.dataset.pos === "all"
+            ? posFilter.size === 0
+            : posFilter.has(b.dataset.pos);
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-pressed", String(active));
+      });
+
+      refreshFn();
+    });
   });
 }
 
@@ -998,8 +1079,10 @@ function updateLeagueStatus() {
 function refreshPlayerSearches() {
   if (playerA && !rowMatchesActiveLeague(playerA)) clearPlayer("a");
   if (playerB && !rowMatchesActiveLeague(playerB)) clearPlayer("b");
-  renderList(listA, filterPlayers(searchA.value.trim()), (row) => onPickPlayer("a", row));
-  renderList(listB, filterPlayers(searchB.value.trim()), (row) => onPickPlayer("b", row));
+  // Pass per-side position filters so the dropdown respects both league and
+  // position selections simultaneously (Feature 2)
+  renderList(listA, filterPlayers(searchA.value.trim(), posFilterA), (row) => onPickPlayer("a", row));
+  renderList(listB, filterPlayers(searchB.value.trim(), posFilterB), (row) => onPickPlayer("b", row));
   listA.hidden = document.activeElement !== searchA || listA.children.length === 0;
   listB.hidden = document.activeElement !== searchB || listB.children.length === 0;
   searchA.setAttribute("aria-expanded", String(!listA.hidden));
@@ -1111,6 +1194,167 @@ function setupRoleFilter() {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RANKING MODAL (Feature 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Trap keyboard focus inside `container` while the modal is open.
+ * Returns a cleanup function that removes the keydown listener.
+ * Handles both forward (Tab) and reverse (Shift+Tab) cycling.
+ */
+function trapFocus(container) {
+  const FOCUSABLE =
+    'a[href], button:not([disabled]), input:not([disabled]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  function getFocusable() {
+    return Array.from(container.querySelectorAll(FOCUSABLE)).filter(
+      (el) => !el.hasAttribute("disabled") && el.offsetParent !== null
+    );
+  }
+
+  function onKeyDown(e) {
+    if (e.key !== "Tab") return;
+    const els = getFocusable();
+    if (!els.length) { e.preventDefault(); return; }
+    const first = els[0];
+    const last  = els[els.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first || !container.contains(document.activeElement)) {
+        e.preventDefault(); last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !container.contains(document.activeElement)) {
+        e.preventDefault(); first.focus();
+      }
+    }
+  }
+
+  container.addEventListener("keydown", onKeyDown);
+  return () => container.removeEventListener("keydown", onKeyDown);
+}
+
+/** Module-level state for the ranking modal */
+let _rankingModal      = null;  // the overlay element
+let _removeFocusTrap   = null;  // cleanup fn from trapFocus
+let _lastFocusEl       = null;  // element to restore focus to on close
+let _onModalEscape     = null;  // bound keydown handler
+// Persist "don't show automatically" across page reloads
+let suppressAutoRanking = localStorage.getItem("suppressAutoRanking") === "true";
+
+/**
+ * Build the modal DOM once and cache it.  All subsequent opens just
+ * repopulate the list — no additional DOM creation.
+ */
+function createRankingModal() {
+  const overlay = document.createElement("div");
+  overlay.id        = "ranking-modal";
+  overlay.className = "modal-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "modal-title");
+  overlay.hidden = true;
+
+  overlay.innerHTML = `
+    <div class="modal-card" role="document">
+      <header class="modal-header">
+        <h2 id="modal-title" class="modal-title">Attribute Rankings</h2>
+        <button class="modal-close" aria-label="Close ranking modal" type="button">✕</button>
+      </header>
+      <ol id="modal-ranking-list" class="ranking-list" aria-label="Attributes ranked by score"></ol>
+      <div class="modal-pref">
+        <label class="modal-pref-label">
+          <input type="checkbox" id="modal-no-auto" class="modal-pref-check" />
+          Don't open automatically when clicking a radar
+        </label>
+      </div>
+    </div>`;
+
+  // Close on backdrop click
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeRankingModal();
+  });
+
+  // Wire close button
+  overlay.querySelector(".modal-close").addEventListener("click", closeRankingModal);
+
+  // Wire "suppress auto" checkbox — persist to localStorage
+  overlay.querySelector("#modal-no-auto").addEventListener("change", (e) => {
+    suppressAutoRanking = e.target.checked;
+    localStorage.setItem("suppressAutoRanking", String(suppressAutoRanking));
+  });
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+/**
+ * Open the ranking modal for `player` (a dataset row).
+ * `tag` is "A" or "B" — used for accent colour.
+ * `isAutoTriggered` is true when called from a polygon click; false when
+ * the user explicitly clicks the Rankings button.
+ */
+function openRankingModal(player, tag, isAutoTriggered = false) {
+  if (!player || !dataset) return;
+  if (isAutoTriggered && suppressAutoRanking) return;
+
+  if (!_rankingModal) _rankingModal = createRankingModal();
+
+  // Sync checkbox with current preference
+  _rankingModal.querySelector("#modal-no-auto").checked = suppressAutoRanking;
+
+  // Accent colour mirrors player colour variable
+  const accentColor = tag === "A" ? "var(--player-a)" : "var(--player-b)";
+  const titleEl = _rankingModal.querySelector("#modal-title");
+  titleEl.textContent = `${player.Player} · Attribute Rankings`;
+  titleEl.style.borderBottomColor = accentColor;
+
+  // Build ranked attribute list sorted descending by normalized score
+  const items = axisKeys
+    .map((key) => ({
+      key,
+      label : statLabel(key),
+      score : dataset.normalizedForPlayer(player, key) ?? 0,
+      raw   : dataset.rawForPlayer(player, key),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  const list = _rankingModal.querySelector("#modal-ranking-list");
+  list.innerHTML = items
+    .map(
+      (item, idx) => `
+      <li class="ranking-item">
+        <span class="rank-num" aria-hidden="true">${idx + 1}</span>
+        <span class="rank-name">${escapeHtml(item.label)}</span>
+        <span class="rank-score" style="color:${accentColor}">${Math.round(item.score)}</span>
+        <span class="rank-raw">(${escapeHtml(formatRaw(item.key, item.raw))})</span>
+      </li>`
+    )
+    .join("");
+
+  // Open modal — save focus, reveal, trap, focus close button
+  _lastFocusEl    = document.activeElement;
+  _rankingModal.hidden = false;
+  _removeFocusTrap = trapFocus(_rankingModal.querySelector(".modal-card"));
+
+  _onModalEscape = (e) => { if (e.key === "Escape") closeRankingModal(); };
+  document.addEventListener("keydown", _onModalEscape);
+
+  _rankingModal.querySelector(".modal-close").focus();
+}
+
+/** Close the ranking modal and restore focus to the previously focused element. */
+function closeRankingModal() {
+  if (!_rankingModal || _rankingModal.hidden) return;
+  _rankingModal.hidden = true;
+  if (_removeFocusTrap) { _removeFocusTrap(); _removeFocusTrap = null; }
+  if (_onModalEscape)   { document.removeEventListener("keydown", _onModalEscape); _onModalEscape = null; }
+  _lastFocusEl?.focus();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function fetchDatasetCsv() {
   const filename = "players_data_cleaned_v2.csv";
   const attempts = [`./${filename}`, new URL(filename, import.meta.url).href];
@@ -1168,6 +1412,25 @@ async function init() {
       height: 600,
       onAxisLabelClick: showChartAxisPicker,
       onLockChange: handleLockChange,
+      /**
+       * RANKING MODAL auto-trigger (Feature 3)
+       * Clicking the polygon area fires this callback.  It passes
+       * isAutoTriggered=true so the "don't show automatically" preference
+       * is respected; manual rank-button clicks pass false.
+       */
+      onPolygonClick: (tag) => {
+        const player = tag === "A" ? playerA : playerB;
+        if (player) openRankingModal(player, tag, true);
+      },
+    });
+
+    // Manual ranking buttons — always open the modal regardless of the
+    // "don't show automatically" preference (Feature 3)
+    rankBtnA?.addEventListener("click", () => {
+      if (playerA) openRankingModal(playerA, "A", false);
+    });
+    rankBtnB?.addEventListener("click", () => {
+      if (playerB) openRankingModal(playerB, "B", false);
     });
 
     // Make legend items clickable to toggle the radar lock

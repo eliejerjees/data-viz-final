@@ -172,6 +172,90 @@ export const LABEL_OVERRIDES = {
   GA90: "Goals Against /90",
   PrgC_stats_possession: "Progressive Carries",
   PrgP_stats_passing: "Progressive Passes",
+
+  // ── 90s Played (per-table duplicates) ──────────────────────────────────────
+  "90s_stats_shooting":       "Shooting Stats Per 90",
+  "90s_stats_defense":        "Defending Stats Per 90",
+  "90s_stats_gca":            "GCA Stats Per 90",
+  "90s_stats_keeper":         "Goalkeeping Stats Per 90",
+  "90s_stats_keeper_adv":     "Adv. GK Stats Per 90",
+  "90s_stats_misc":           "Misc Stats Per 90",
+  "90s_stats_passing":        "Passing Stats Per 90",
+  "90s_stats_passing_types":  "Pass Types Per 90",
+  "90s_stats_playing_time":   "Playing Time 90s",
+  "90s_stats_possession":     "Possession Stats Per 90",
+
+  // ── Age (per-table duplicates) ─────────────────────────────────────────────
+  "Age_stats_shooting":       "Age (Shooting)",
+  "Age_stats_defense":        "Age (Defending)",
+  "Age_stats_gca":            "Age (GCA)",
+  "Age_stats_keeper":         "Age (Goalkeeping)",
+  "Age_stats_keeper_adv":     "Age (Adv. GK)",
+  "Age_stats_misc":           "Age (Misc)",
+  "Age_stats_passing":        "Age (Passing)",
+  "Age_stats_passing_types":  "Age (Pass Types)",
+  "Age_stats_playing_time":   "Age (Playing Time)",
+  "Age_stats_possession":     "Age (Possession)",
+
+  // ── Matches / Minutes / Starts (per-table duplicates) ─────────────────────
+  "MP_stats_keeper":           "Matches Played (Goalkeeping)",
+  "MP_stats_playing_time":     "Matches Played (Playing Time)",
+  "Min_stats_keeper":          "Minutes Played (Goalkeeping)",
+  "Min_stats_playing_time":    "Minutes Played (Playing Time)",
+  "Starts_stats_keeper":       "Starts (Goalkeeping)",
+  "Starts_stats_playing_time": "Starts (Playing Time)",
+
+  // ── Possession-table stats ─────────────────────────────────────────────────
+  "1/3_stats_possession":       "Passes into Final Third (Possession)",
+  "Att 3rd_stats_possession":   "Attacking 3rd Touches (Possession)",
+  "Def 3rd_stats_possession":   "Defensive 3rd Touches (Possession)",
+  "Mid 3rd_stats_possession":   "Mid 3rd Touches (Possession)",
+  "Att_stats_possession":       "Take-Ons Attempted",
+  "Live_stats_possession":      "Live-Ball Touches (Possession)",
+  "PrgR_stats_possession":      "Progressive Passes Received",
+
+  // ── Pass Types table ──────────────────────────────────────────────────────
+  "Att_stats_passing_types":    "Passes Attempted (Pass Types)",
+  "Cmp_stats_passing_types":    "Passes Completed (Pass Types)",
+  "FK_stats_passing_types":     "Free-Kick Passes",
+
+  // ── Passing table ─────────────────────────────────────────────────────────
+  "Ast_stats_passing":          "Assists (Passing Table)",
+  "xAG_stats_passing":          "Expected Assisted Goals (Passing)",
+
+  // ── Shooting table ────────────────────────────────────────────────────────
+  "Gls_stats_shooting":         "Goals (Shooting Table)",
+  "PK_stats_shooting":          "Penalty Goals (Shooting)",
+  "PKatt_stats_shooting":       "Penalties Attempted (Shooting)",
+  "xG_stats_shooting":          "Expected Goals (Shooting)",
+  "npxG_stats_shooting":        "Non-Penalty Expected Goals (Shooting)",
+
+  // ── Defending table ───────────────────────────────────────────────────────
+  "Att_stats_defense":          "Dribble Attempts Faced",
+
+  // ── GCA table ─────────────────────────────────────────────────────────────
+  "Sh_stats_gca":               "Shot-Based GCAs",
+
+  // ── Misc table ────────────────────────────────────────────────────────────
+  "CrdY_stats_misc":   "Yellow Cards",
+  "CrdR_stats_misc":   "Red Cards",
+  "Crs_stats_misc":    "Crosses (Misc)",
+  "Fld_stats_misc":    "Fouls Drawn",
+  "Int_stats_misc":    "Interceptions (Misc)",
+  "Off_stats_misc":    "Offsides",
+  "TklW_stats_misc":   "Tackles Won (Misc)",
+
+  // ── Goalkeeper Advanced table ─────────────────────────────────────────────
+  "Att_stats_keeper_adv":   "Launched Passes Attempted (GK)",
+  "CK_stats_keeper_adv":    "Corner Kicks Faced (GK)",
+  "Cmp_stats_keeper_adv":   "Long Balls Completed (GK)",
+  "FK_stats_keeper_adv":    "Free-Kick Shots Faced (GK)",
+  "GA_stats_keeper_adv":    "Goals Allowed (GK Adv.)",
+  "OG_stats_keeper_adv":    "Own Goals (GK)",
+  "PKA_stats_keeper_adv":   "Penalty Kicks Faced (GK)",
+
+  // ── Goalkeeper (basic) table ──────────────────────────────────────────────
+  "PKatt_stats_keeper": "Penalties Faced (GK)",
 };
 
 /** Plain-English names shown in the axis picker. Keep abbreviations in the metadata line. */
@@ -289,8 +373,12 @@ function parseValue(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Per-table suffixed duplicates of metadata columns — never useful as stats */
+const METADATA_PREFIX_RE = /^(Player|Nation|Pos|Squad|Comp|Born|Rk)_stats_/i;
+
 function isNumericColumnKey(key, rows) {
   if (METADATA_KEYS.has(key)) return false;
+  if (METADATA_PREFIX_RE.test(key)) return false;
   let ok = 0;
   let total = 0;
   for (const row of rows) {

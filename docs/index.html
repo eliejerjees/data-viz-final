@@ -92,6 +92,21 @@
       <article class="player-panel player-panel--a" aria-labelledby="name-a">
         <div class="player-search">
           <label for="search-a">Player A</label>
+          <!-- Position filter (Feature 2): multi-select toggles that narrow
+               search results to specific positions without affecting the league
+               pool or the radar-preset axes. -->
+          <div
+            id="pos-filter-a"
+            class="pos-filter-group"
+            role="group"
+            aria-label="Filter Player A search by position"
+          >
+            <button type="button" class="pos-filter-btn is-active" data-pos="all" aria-pressed="true">All</button>
+            <button type="button" class="pos-filter-btn" data-pos="FW"  aria-pressed="false">FW</button>
+            <button type="button" class="pos-filter-btn" data-pos="MF"  aria-pressed="false">MF</button>
+            <button type="button" class="pos-filter-btn" data-pos="DF"  aria-pressed="false">DF</button>
+            <button type="button" class="pos-filter-btn" data-pos="GK"  aria-pressed="false">GK</button>
+          </div>
           <div class="autocomplete">
             <input
               id="search-a"
@@ -120,6 +135,15 @@
             <h3 id="name-a" class="player-name">Player A</h3>
             <div id="identity-a" class="identity-row" aria-label="Player nationality and club"></div>
             <p id="meta-a" class="player-meta"></p>
+            <!-- Rankings button (Feature 3): always available once a player is
+                 selected, even if auto-popup is suppressed. -->
+            <button
+              type="button"
+              id="rank-btn-a"
+              class="rank-btn"
+              aria-label="View Player A attribute rankings"
+              hidden
+            >Rankings ▸</button>
           </div>
         </div>
       </article>
@@ -141,6 +165,18 @@
       <article class="player-panel player-panel--b" aria-labelledby="name-b">
         <div class="player-search">
           <label for="search-b">Player B</label>
+          <div
+            id="pos-filter-b"
+            class="pos-filter-group"
+            role="group"
+            aria-label="Filter Player B search by position"
+          >
+            <button type="button" class="pos-filter-btn is-active" data-pos="all" aria-pressed="true">All</button>
+            <button type="button" class="pos-filter-btn" data-pos="FW"  aria-pressed="false">FW</button>
+            <button type="button" class="pos-filter-btn" data-pos="MF"  aria-pressed="false">MF</button>
+            <button type="button" class="pos-filter-btn" data-pos="DF"  aria-pressed="false">DF</button>
+            <button type="button" class="pos-filter-btn" data-pos="GK"  aria-pressed="false">GK</button>
+          </div>
           <div class="autocomplete">
             <input
               id="search-b"
@@ -169,6 +205,13 @@
             <h3 id="name-b" class="player-name">Player B</h3>
             <div id="identity-b" class="identity-row" aria-label="Player nationality and club"></div>
             <p id="meta-b" class="player-meta"></p>
+            <button
+              type="button"
+              id="rank-btn-b"
+              class="rank-btn"
+              aria-label="View Player B attribute rankings"
+              hidden
+            >Rankings ▸</button>
           </div>
         </div>
       </article>

@@ -65,6 +65,38 @@ export function createRadarChart(containerEl, options = {}) {
 
   const angleSlice = (Math.PI * 2) / 6;
 
+  /**
+   * SCALE LABELS (Feature 1)
+   * Render a numeric score label on every concentric ring so users can
+   * read approximate values before hovering.  Labels are placed at the
+   * midpoint between axis 0 (top, –90°) and axis 1 (upper-right, –30°),
+   * i.e. at –60° from vertical, which is clean empty space between the
+   * two uppermost axes and never conflicts with axis-label text.
+   *
+   * The CSS `paint-order: stroke fill` trick creates a dark halo around
+   * each character, guaranteeing readability even when a polygon is drawn
+   * across the label position.
+   *
+   * Labels are aria-hidden because exact values are already exposed via
+   * the interactive vertex tooltips.
+   */
+  {
+    const SCALE_ANGLE = -Math.PI / 2 + angleSlice * 0.5; // –60° from vertical
+    for (let i = 1; i <= levels; i++) {
+      const r   = (radius * i) / levels;
+      const score = (100 * i) / levels; // 20 · 40 · 60 · 80 · 100
+      levelGroup
+        .append("text")
+        .attr("x", Math.cos(SCALE_ANGLE) * r)
+        .attr("y", Math.sin(SCALE_ANGLE) * r)
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "middle")
+        .attr("class", "scale-label")
+        .attr("aria-hidden", "true")
+        .text(String(Math.round(score)));
+    }
+  }
+
   function angleForIndex(i) {
     return -Math.PI / 2 + i * angleSlice;
   }
@@ -261,11 +293,16 @@ export function createRadarChart(containerEl, options = {}) {
         state.emphasis = null;
         if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
       })
-      // Click on a polygon area toggles the radar lock for that player.
+      // Clicking the polygon BOTH locks/highlights the radar (so you can hover
+      // individual dots cleanly) AND fires the ranking-popup callback.
+      // The lock stays active after the popup closes, so users can immediately
+      // hover the highlighted dots without re-clicking.
+      // Dot clicks (wireDotHandlers) also toggle the lock independently.
       // stopPropagation prevents the background-clear rect from also firing.
       .on("click.hit", (event) => {
         event.stopPropagation();
         toggleLock(tag);
+        options.onPolygonClick?.(tag);
       });
   }
 
