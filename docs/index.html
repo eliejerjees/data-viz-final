@@ -30,6 +30,42 @@
   <main id="main" class="layout">
     <div id="comparison-warning" class="banner banner-warn" role="alert" hidden></div>
 
+    <!-- ── INTRO BLURB + HOW-TO (Features 1 & 2) ───────────────────────────
+         The intro text frames the tool for first-time visitors. The <details>/
+         <summary> element provides a collapsible How-to-Use section with native
+         keyboard support and automatic aria-expanded management — no JS needed.
+         ─────────────────────────────────────────────────────────────────── -->
+    <section class="intro-section" aria-labelledby="intro-heading">
+      <div class="intro-blurb">
+        <h2 id="intro-heading" class="intro-heading">Big 5 Player Radar</h2>
+        <p class="intro-text">
+          Pick any two players from Europe's Top 5 leagues and see how they match up across
+          goals, assists, passing, defending, and more. Every stat is scored 0–100 relative
+          to the full dataset — so a striker and a centre-back can be compared on the same
+          chart fairly. Two players are preloaded to get you started; swap in anyone you like
+          using the search boxes below.
+        </p>
+      </div>
+      <!-- Collapsible how-to: <details>/<summary> gives free keyboard nav,
+           aria-expanded, and focus management without any JavaScript. -->
+      <details class="how-to" id="how-to-details">
+        <summary class="how-to__toggle" aria-label="How to use this visualization">
+          How to use
+          <span class="how-to__chevron" aria-hidden="true">▾</span>
+        </summary>
+        <ul class="how-to__list" role="list">
+          <li><strong>Filter by league</strong> — use the league tabs to narrow the player pool to one competition.</li>
+          <li><strong>Search for players</strong> — type a name in either search box and select from the dropdown.</li>
+          <li><strong>Filter by position</strong> — tap FW · MF · DF · GK under a search box to narrow results.</li>
+          <li><strong>Focus a radar</strong> — click a polygon or legend label to lock it; then hover the dots for exact stats and a head-to-head diff.</li>
+          <li><strong>Rankings</strong> — clicking the radar opens a ranked attribute card for that player.</li>
+          <li><strong>Swap axes</strong> — click any axis label on the chart to replace it with a stat from the full catalog.</li>
+          <li><strong>0–100 scores</strong> — the concentric rings mark 20 · 40 · 60 · 80 · 100; a score of 100 is the dataset best for that stat.</li>
+          <li><strong>Radar presets</strong> — use the Attacking · Midfield · Defending · Goalkeeping tabs to switch the whole axis group at once.</li>
+        </ul>
+      </details>
+    </section>
+
     <section class="league-filter" aria-labelledby="league-filter-heading">
       <div class="league-filter__head">
         <h2 id="league-filter-heading">League pool</h2>
@@ -219,9 +255,25 @@
 
   </main>
 
+  <!-- ── FOOTER ───────────────────────────────────────────────────────────
+       Feature 3: dataset link points to the companion tabular data page.
+       Link colour (#3b82f6) achieves ~5.7:1 contrast on the dark footer
+       background, meeting WCAG AA for normal text. Hover and focus states
+       are visually distinct from the default state.
+       ─────────────────────────────────────────────────────────────────── -->
   <footer class="app-footer">
     <p>
-      Data: FBref-style aggregates · Images via PlaymakerStats search API · Min-max ranges exclude missing values per stat across all rows.
+      Data: FBref 2024/25 · ~2,854 player-seasons across the Big 5 European leagues · Player photos via Wikipedia / Wikimedia Commons · Stats scored 0–100 using min-max normalization across all players
+    </p>
+    <p>
+      <a
+        href="playersdata.html"
+        class="dataset-link"
+        aria-label="View full Europe Top 5 Leagues player data in tabular format"
+      >View Full Player Dataset ↗</a>
+    </p>
+    <p>
+      This visualization was made for CSC 362 with substantial help from Codex and Claude Code to generate most of this visualization.
     </p>
   </footer>
 
