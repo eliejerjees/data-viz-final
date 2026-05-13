@@ -225,7 +225,9 @@ export function createRadarChart(containerEl, options = {}) {
     dotGroup.selectAll(".vertex").each(function () {
       const tag     = d3.select(this).attr("data-tag");
       const blocked = state.lockedTag !== null && tag !== state.lockedTag;
-      d3.select(this).style("pointer-events", blocked ? "none" : "all");
+      d3.select(this)
+        .style("pointer-events", blocked ? "none" : "all")
+        .attr("tabindex", blocked ? -1 : 0);
     });
   }
 
@@ -330,6 +332,29 @@ export function createRadarChart(containerEl, options = {}) {
       .on("click.dot", (event) => {
         event.stopPropagation();
         toggleLock(tag);
+      })
+      // Keyboard: show tooltip on focus, hide on blur, lock on Enter/Space
+      .on("focus.dot", function () {
+        state.emphasis = tag;
+        refreshEmphasis(d3.transition().duration(120));
+        const meta = d3.select(this).datum();
+        const rect = this.getBoundingClientRect();
+        tooltip
+          .html(buildTooltipHtml(meta))
+          .style("left", `${rect.right + 10}px`)
+          .style("top", `${rect.top}px`)
+          .style("opacity", 1);
+      })
+      .on("blur.dot", function () {
+        state.emphasis = null;
+        if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
+        tooltip.style("opacity", 0);
+      })
+      .on("keydown.dot", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        toggleLock(tag);
       });
   }
 
@@ -406,6 +431,8 @@ export function createRadarChart(containerEl, options = {}) {
           label: m.label ?? state.labels[i],
         };
 
+        const ariaLabel = `${pl.name}: ${datum.label ?? state.labels[i]}, score ${datum.scoreExact ?? "—"}, actual ${datum.rawExact ?? "—"}`;
+
         const circle = dotGroup
           .append("circle")
           .datum(datum)
@@ -418,10 +445,10 @@ export function createRadarChart(containerEl, options = {}) {
           .attr("stroke", "var(--text)")
           .attr("stroke-width", 1.25)
           .attr("stroke-dasharray", tag === "B" ? "3 3" : null)
-          .attr(
-            "opacity",
-            state.emphasis && state.emphasis !== tag ? 0.35 : 1
-          );
+          .attr("opacity", state.emphasis && state.emphasis !== tag ? 0.35 : 1)
+          .attr("tabindex", 0)
+          .attr("role", "button")
+          .attr("aria-label", ariaLabel);
 
         wireDotHandlers(circle, tag);
       });
