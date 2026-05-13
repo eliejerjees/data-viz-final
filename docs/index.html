@@ -175,12 +175,10 @@
       <div class="chart-column">
         <div class="chart-wrap">
           <!--
-            Static description for screen readers and WAVE — never touched by JS.
-            Describes the chart's purpose and default takeaway message.
+            Hidden heading for screen readers — h4 so it appears in WAVE's Structure tab.
+            Describes the chart's takeaway. Never touched by JS.
           -->
-          <p class="visually-hidden">
-            This is an interactive radar chart comparing two football players across six statistics from Europe's Top 5 leagues. Stats are normalized 0–100 so players at different positions can be compared on equal footing. By default it compares Vinicius Júnior and Erling Haaland — Haaland leads in Expected Goals and Shots while Vinicius leads in Progressive Carries. Use the search boxes below to swap in any player and the axis labels to change which stats are displayed.
-          </p>
+          <h4 class="sr-only">Radar chart: This visualization compares two football players across six normalized statistics (0–100 scale). By default, Erling Haaland leads Vinicius Júnior in Expected Goals and Shots on Target, while Vinicius leads in Progressive Carries. Use the search boxes to compare any two players from Europe's Top 5 leagues.</h4>
           <!--
             Live region — updated by generateRadarDescription() in main.js
             whenever players, axes, or the lock state changes.
@@ -204,6 +202,11 @@
           Click a radar polygon or legend label to focus it
         </p>
         <button type="button" id="reset-stats" class="btn-secondary">Reset axes</button>
+        <p class="dataset-cta">
+          <a href="playersdata.html" aria-label="View full player dataset as an accessible HTML table">
+            View full dataset ↗
+          </a>
+        </p>
       </div>
 
       <article class="player-panel player-panel--b" aria-labelledby="name-b">
