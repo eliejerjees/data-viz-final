@@ -174,7 +174,21 @@
 
       <div class="chart-column">
         <div class="chart-wrap">
-          <div id="radar-mount"></div>
+          <!--
+            Live region for the radar chart description.
+            Screen readers announce this whenever players or axes change.
+            Updated dynamically by generateRadarDescription() in main.js.
+            visually-hidden keeps it off-screen without using display:none,
+            which would prevent screen readers from reading it.
+          -->
+          <div
+            id="radar-desc"
+            class="visually-hidden"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+          <div id="radar-mount" aria-hidden="true"></div>
         </div>
         <div class="legend-row" role="group" aria-label="Chart legend">
           <span class="legend-item legend-a"><span class="swatch"></span> <span id="legend-a">Player A</span></span>

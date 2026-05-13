@@ -671,6 +671,66 @@ function buildMeta(row, keys, otherRow = null) {
   });
 }
 
+// Build a plain-English description of the current radar state and push it
+// into the live region (#radar-desc) so screen readers announce changes.
+// Also syncs the SVG aria-label to the same text.
+function generateRadarDescription() {
+  const descEl = document.getElementById("radar-desc");
+  if (!descEl) return;
+
+  if (!playerA && !playerB) {
+    descEl.textContent =
+      "Interactive radar chart. No players selected. Use the search boxes to pick players.";
+    return;
+  }
+
+  // Single-player case
+  if (!playerA || !playerB) {
+    const loaded = playerA || playerB;
+    const statSummary = axisKeys
+      .map((k) => {
+        const score = dataset?.normalizedForPlayer(loaded, k);
+        return score != null ? `${statLabel(k)}: ${Math.round(score)}` : null;
+      })
+      .filter(Boolean)
+      .join(", ");
+    descEl.textContent =
+      `Interactive radar chart. ${loaded.Player} (${loaded.Squad}) is loaded. ` +
+      `Stats: ${statSummary}. Select a second player to compare.`;
+    chartMount?.querySelector("svg")?.setAttribute("aria-label", descEl.textContent);
+    return;
+  }
+
+  // Both players — figure out who leads in each stat
+  const nameA = playerA.Player;
+  const nameB = playerB.Player;
+  const edgeA = [];
+  const edgeB = [];
+
+  for (const k of axisKeys) {
+    const sA = dataset?.normalizedForPlayer(playerA, k) ?? 0;
+    const sB = dataset?.normalizedForPlayer(playerB, k) ?? 0;
+    if (sA - sB > 12) edgeA.push(statLabel(k));
+    else if (sB - sA > 12) edgeB.push(statLabel(k));
+  }
+
+  let desc =
+    `Interactive radar chart comparing ${nameA} and ${nameB} ` +
+    `across ${axisKeys.length} statistics: ${axisKeys.map(statLabel).join(", ")}.`;
+
+  if (edgeA.length) desc += ` ${nameA} leads in: ${edgeA.join(", ")}.`;
+  if (edgeB.length) desc += ` ${nameB} leads in: ${edgeB.join(", ")}.`;
+  if (!edgeA.length && !edgeB.length) {
+    desc += " The two players are closely matched across all displayed statistics.";
+  }
+  desc +=
+    " Click a radar polygon or legend label to focus one player. " +
+    "Click an axis label to swap it for a different statistic.";
+
+  descEl.textContent = desc;
+  chartMount?.querySelector("svg")?.setAttribute("aria-label", desc);
+}
+
 function updateChart() {
   if (!radar || !dataset) return;
 
@@ -737,6 +797,8 @@ function updateChart() {
     },
     transitionMs: 450,
   });
+
+  generateRadarDescription();
 }
 
 function onPickPlayer(side, row) {
@@ -747,7 +809,7 @@ function onPickPlayer(side, row) {
     nameA.textContent = row.Player;
     renderIdentity(identityA, row);
     metaA.textContent = `${row.Squad} · ${leagueLabel(row.Comp)} · ${positionText(row)}`;
-    imgA.alt = row.Player;
+    imgA.alt = `Photo of ${row.Player}, ${row.Squad}`;
     loadSelectedPlayerImage("a", row);
     legendA.textContent = row.Player;
     if (headlineA) headlineA.textContent = row.Player;
@@ -759,7 +821,7 @@ function onPickPlayer(side, row) {
     nameB.textContent = row.Player;
     renderIdentity(identityB, row);
     metaB.textContent = `${row.Squad} · ${leagueLabel(row.Comp)} · ${positionText(row)}`;
-    imgB.alt = row.Player;
+    imgB.alt = `Photo of ${row.Player}, ${row.Squad}`;
     loadSelectedPlayerImage("b", row);
     legendB.textContent = row.Player;
     if (headlineB) headlineB.textContent = row.Player;
@@ -1182,6 +1244,7 @@ function createRankingModal() {
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
   overlay.setAttribute("aria-labelledby", "modal-title");
+  overlay.setAttribute("aria-describedby", "modal-desc");
   overlay.hidden = true;
 
   overlay.innerHTML = `
@@ -1190,6 +1253,11 @@ function createRankingModal() {
         <h2 id="modal-title" class="modal-title">Attribute Rankings</h2>
         <button class="modal-close" aria-label="Close ranking modal" type="button">✕</button>
       </header>
+      <p id="modal-desc" class="visually-hidden">
+        Each row shows an attribute name, its normalized score out of 100, and the raw stat value in parentheses.
+        Attributes are sorted from highest score to lowest.
+        Press Escape or click the close button to dismiss.
+      </p>
       <ol id="modal-ranking-list" class="ranking-list" aria-label="Attributes ranked by score"></ol>
       <div class="modal-pref">
         <label class="modal-pref-label">
@@ -1242,11 +1310,11 @@ function openRankingModal(player, tag, isAutoTriggered = false) {
   list.innerHTML = items
     .map(
       (item, idx) => `
-      <li class="ranking-item">
+      <li class="ranking-item" aria-label="${escapeHtml(item.label)}: score ${Math.round(item.score)} out of 100, raw value ${escapeHtml(formatRaw(item.key, item.raw))}">
         <span class="rank-num" aria-hidden="true">${idx + 1}</span>
-        <span class="rank-name">${escapeHtml(item.label)}</span>
-        <span class="rank-score" style="color:${accentColor}">${Math.round(item.score)}</span>
-        <span class="rank-raw">(${escapeHtml(formatRaw(item.key, item.raw))})</span>
+        <span class="rank-name" aria-hidden="true">${escapeHtml(item.label)}</span>
+        <span class="rank-score" style="color:${accentColor}" aria-hidden="true">${Math.round(item.score)}</span>
+        <span class="rank-raw" aria-hidden="true">(${escapeHtml(formatRaw(item.key, item.raw))})</span>
       </li>`
     )
     .join("");
@@ -1301,6 +1369,8 @@ async function init() {
 
     // Called by radarChart when the lock state changes.
     // Updates legend styling to show which player is focused.
+    // Also updates the live region so screen reader users hear stat values
+    // without having to hover over the chart.
     function handleLockChange(lockedTag) {
       if (!legendItemA || !legendItemB) return;
 
@@ -1314,6 +1384,32 @@ async function init() {
         hint.textContent = lockedTag
           ? "Click the focused radar, a dot, or the chart background to release"
           : "Click a radar polygon or legend label to focus it";
+      }
+
+      const descEl = document.getElementById("radar-desc");
+      if (!descEl) return;
+
+      if (lockedTag && dataset) {
+        // Describe the focused player's full stat values so keyboard/screen-reader
+        // users can access the same info that sighted users get by hovering dots.
+        const player = lockedTag === "A" ? playerA : playerB;
+        const other  = lockedTag === "A" ? playerB : playerA;
+        if (player) {
+          const statLines = axisKeys.map((k) => {
+            const score = dataset.normalizedForPlayer(player, k) ?? 0;
+            const raw   = dataset.rawForPlayer(player, k);
+            let line = `${statLabel(k)}: ${Math.round(score)} out of 100 (${formatRaw(k, raw)})`;
+            if (other) {
+              const diff = Math.round(score - (dataset.normalizedForPlayer(other, k) ?? 0));
+              if (diff !== 0) line += `, ${diff > 0 ? "+" : ""}${diff} vs ${other.Player}`;
+            }
+            return line;
+          });
+          descEl.textContent = `Focused: ${player.Player}. ${statLines.join(". ")}.`;
+        }
+      } else {
+        // Lock released — restore the general comparison description.
+        generateRadarDescription();
       }
     }
 

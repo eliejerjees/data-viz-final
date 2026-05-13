@@ -18,7 +18,8 @@ export function createRadarChart(containerEl, options = {}) {
     .select(containerEl)
     .append("svg")
     .attr("role", "img")
-    .attr("aria-label", "Radar chart comparing two players across six statistics")
+    .attr("aria-label", "Interactive radar chart comparing two football players")
+    .attr("aria-describedby", "radar-desc")
     .attr("viewBox", `0 0 ${width} ${height}`)
     .attr("width", width)
     .attr("height", height);
