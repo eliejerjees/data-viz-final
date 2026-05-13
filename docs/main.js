@@ -987,7 +987,7 @@ function clearPlayer(side) {
     renderIdentity(identityA, null);
     metaA.textContent = "";
     imgA.src = noPhotoSvg(160, 200, "");
-    imgA.alt = "";
+    imgA.alt = "Player A photo — no player selected yet";
     legendA.textContent = "Player A";
     if (headlineA) headlineA.textContent = "Player A";
     if (rankBtnA) rankBtnA.hidden = true;
@@ -999,7 +999,7 @@ function clearPlayer(side) {
     renderIdentity(identityB, null);
     metaB.textContent = "";
     imgB.src = noPhotoSvg(160, 200, "");
-    imgB.alt = "";
+    imgB.alt = "Player B photo — no player selected yet";
     legendB.textContent = "Player B";
     if (headlineB) headlineB.textContent = "Player B";
     if (rankBtnB) rankBtnB.hidden = true;
