@@ -420,13 +420,13 @@ input {
   max-width: none;
   height: auto;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  border: 6px solid var(--profile-accent);
   background: transparent;
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--profile-accent) 35%, transparent);
 }
 
 .player-text {
   padding-top: 0.1rem;
-  border-top: 2px solid var(--profile-accent);
 }
 
 .player-name {
@@ -1073,30 +1073,85 @@ input {
   outline-offset: 2px;
 }
 
+/* Sort toggle bar inside the ranking modal */
+.modal-sort {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-sort-btn {
+  padding: 0.22rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.modal-sort-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.modal-sort-btn.is-active {
+  background: var(--surface-soft);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.modal-sort-btn:focus-visible {
+  outline: 2px solid rgba(250, 204, 21, 0.74);
+  outline-offset: 2px;
+}
+
+/* Column header row above the ranking list */
+.ranking-header {
+  display: grid;
+  grid-template-columns: 1fr 5rem 5rem;
+  gap: 0 0.5rem;
+  padding: 0.35rem 1rem 0.3rem;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface-soft);
+}
+
+.rh-name {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rh-col {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
 .ranking-list {
   margin: 0;
-  padding: 0.5rem 1rem 0.25rem;
+  padding: 0.25rem 1rem 0.25rem;
   list-style: none;
-  counter-reset: rank;
 }
 
 .ranking-item {
   display: grid;
-  grid-template-columns: 1.6rem 1fr auto auto;
+  grid-template-columns: 1fr 5rem 5rem;
   align-items: baseline;
-  gap: 0 0.55rem;
+  gap: 0 0.5rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
 }
 
 .ranking-item:last-child { border-bottom: none; }
-
-.rank-num {
-  color: var(--text-dim);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-align: right;
-}
 
 .rank-name {
   color: var(--text);
@@ -1106,16 +1161,15 @@ input {
 
 /* Score colour is set inline by JS to match the player's accent */
 .rank-score {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 900;
-  min-width: 2.8rem;
   text-align: right;
 }
 
 .rank-raw {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: right;
   white-space: nowrap;
 }
 

@@ -1233,8 +1233,34 @@ let _rankingModal      = null;
 let _removeFocusTrap   = null;
 let _lastFocusEl       = null;
 let _onModalEscape     = null;
+let _rankingItems      = [];       // current item list (radar axis order)
+let _rankingAccent     = "";       // current player accent color
+let _rankingSort       = "default"; // "default" | "desc" | "asc"
 // Persisted so the preference survives a page reload
 let suppressAutoRanking = localStorage.getItem("suppressAutoRanking") === "true";
+
+// Re-renders the ranking list using the current sort setting.
+// Called on open and whenever the sort buttons are clicked.
+function renderRankingList() {
+  if (!_rankingModal) return;
+  const list = _rankingModal.querySelector("#modal-ranking-list");
+
+  let items = [..._rankingItems];
+  if (_rankingSort === "desc") items.sort((a, b) => b.score - a.score);
+  else if (_rankingSort === "asc") items.sort((a, b) => a.score - b.score);
+  // "default" keeps radar axis order
+
+  list.innerHTML = items
+    .map(
+      (item) => `
+      <li class="ranking-item" aria-label="${escapeHtml(item.label)}: normalized score ${Math.round(item.score)} out of 100, actual value ${escapeHtml(formatRaw(item.key, item.raw))}">
+        <span class="rank-name" aria-hidden="true">${escapeHtml(item.label)}</span>
+        <span class="rank-raw" style="color:var(--accent)" aria-hidden="true">${escapeHtml(formatRaw(item.key, item.raw))}</span>
+        <span class="rank-score" style="color:${_rankingAccent}" aria-hidden="true">${Math.round(item.score)}</span>
+      </li>`
+    )
+    .join("");
+}
 
 // Build the modal DOM once. Subsequent opens just repopulate the list.
 function createRankingModal() {
@@ -1254,11 +1280,21 @@ function createRankingModal() {
         <button class="modal-close" aria-label="Close ranking modal" type="button">✕</button>
       </header>
       <p id="modal-desc" class="visually-hidden">
-        Each row shows an attribute name, its normalized score out of 100, and the raw stat value in parentheses.
-        Attributes are sorted from highest score to lowest.
+        Each row shows an attribute name, its normalized score out of 100, and the actual stat value.
+        Attributes are listed in the same order as the radar chart axes.
         Press Escape or click the close button to dismiss.
       </p>
-      <ol id="modal-ranking-list" class="ranking-list" aria-label="Attributes ranked by score"></ol>
+      <div class="modal-sort" role="group" aria-label="Sort order">
+        <button type="button" class="modal-sort-btn is-active" data-sort="default">Radar order</button>
+        <button type="button" class="modal-sort-btn" data-sort="desc">Highest first</button>
+        <button type="button" class="modal-sort-btn" data-sort="asc">Lowest first</button>
+      </div>
+      <div class="ranking-header" aria-hidden="true">
+        <span class="rh-name">Attribute</span>
+        <span class="rh-col">Actual</span>
+        <span class="rh-col">Normalized</span>
+      </div>
+      <ul id="modal-ranking-list" class="ranking-list" aria-label="Player attribute stats"></ul>
       <div class="modal-pref">
         <label class="modal-pref-label">
           <input type="checkbox" id="modal-no-auto" class="modal-pref-check" />
@@ -1272,6 +1308,17 @@ function createRankingModal() {
   });
 
   overlay.querySelector(".modal-close").addEventListener("click", closeRankingModal);
+
+  overlay.querySelectorAll(".modal-sort-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _rankingSort = btn.dataset.sort;
+      overlay.querySelectorAll(".modal-sort-btn").forEach((b) => {
+        b.classList.toggle("is-active", b === btn);
+        b.setAttribute("aria-pressed", String(b === btn));
+      });
+      renderRankingList();
+    });
+  });
 
   overlay.querySelector("#modal-no-auto").addEventListener("change", (e) => {
     suppressAutoRanking = e.target.checked;
@@ -1292,32 +1339,28 @@ function openRankingModal(player, tag, isAutoTriggered = false) {
 
   _rankingModal.querySelector("#modal-no-auto").checked = suppressAutoRanking;
 
-  const accentColor = tag === "A" ? "var(--player-a)" : "var(--player-b)";
+  _rankingAccent = tag === "A" ? "var(--player-a)" : "var(--player-b)";
   const titleEl = _rankingModal.querySelector("#modal-title");
   titleEl.textContent = `${player.Player} · Attribute Rankings`;
-  titleEl.style.borderBottomColor = accentColor;
+  titleEl.style.borderBottomColor = _rankingAccent;
 
-  const items = axisKeys
-    .map((key) => ({
-      key,
-      label : statLabel(key),
-      score : dataset.normalizedForPlayer(player, key) ?? 0,
-      raw   : dataset.rawForPlayer(player, key),
-    }))
-    .sort((a, b) => b.score - a.score);
+  // Store items in radar axis order. renderRankingList() applies the sort.
+  _rankingItems = axisKeys.map((key) => ({
+    key,
+    label : statLabel(key),
+    score : dataset.normalizedForPlayer(player, key) ?? 0,
+    raw   : dataset.rawForPlayer(player, key),
+  }));
 
-  const list = _rankingModal.querySelector("#modal-ranking-list");
-  list.innerHTML = items
-    .map(
-      (item, idx) => `
-      <li class="ranking-item" aria-label="${escapeHtml(item.label)}: score ${Math.round(item.score)} out of 100, raw value ${escapeHtml(formatRaw(item.key, item.raw))}">
-        <span class="rank-num" aria-hidden="true">${idx + 1}</span>
-        <span class="rank-name" aria-hidden="true">${escapeHtml(item.label)}</span>
-        <span class="rank-score" style="color:${accentColor}" aria-hidden="true">${Math.round(item.score)}</span>
-        <span class="rank-raw" aria-hidden="true">(${escapeHtml(formatRaw(item.key, item.raw))})</span>
-      </li>`
-    )
-    .join("");
+  // Reset sort to radar order each time a new player is opened.
+  _rankingSort = "default";
+  _rankingModal.querySelectorAll(".modal-sort-btn").forEach((btn) => {
+    const active = btn.dataset.sort === "default";
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", String(active));
+  });
+
+  renderRankingList();
 
   _lastFocusEl    = document.activeElement;
   _rankingModal.hidden = false;
