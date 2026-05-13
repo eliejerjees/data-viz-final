@@ -175,11 +175,17 @@
       <div class="chart-column">
         <div class="chart-wrap">
           <!--
-            Live region for the radar chart description.
-            Screen readers announce this whenever players or axes change.
-            Updated dynamically by generateRadarDescription() in main.js.
-            visually-hidden keeps it off-screen without using display:none,
-            which would prevent screen readers from reading it.
+            Static description for screen readers and WAVE — never touched by JS.
+            Describes the chart's purpose and default takeaway message.
+          -->
+          <p class="visually-hidden">
+            This is an interactive radar chart comparing two football players across six statistics from Europe's Top 5 leagues. Stats are normalized 0–100 so players at different positions can be compared on equal footing. By default it compares Vinicius Júnior and Erling Haaland — Haaland leads in Expected Goals and Shots while Vinicius leads in Progressive Carries. Use the search boxes below to swap in any player and the axis labels to change which stats are displayed.
+          </p>
+          <!--
+            Live region — updated by generateRadarDescription() in main.js
+            whenever players, axes, or the lock state changes.
+            visually-hidden keeps it off-screen without display:none so
+            screen readers still announce it.
           -->
           <div
             id="radar-desc"
