@@ -30,11 +30,6 @@
   <main id="main" class="layout">
     <div id="comparison-warning" class="banner banner-warn" role="alert" hidden></div>
 
-    <!-- ── INTRO BLURB + HOW-TO (Features 1 & 2) ───────────────────────────
-         The intro text frames the tool for first-time visitors. The <details>/
-         <summary> element provides a collapsible How-to-Use section with native
-         keyboard support and automatic aria-expanded management — no JS needed.
-         ─────────────────────────────────────────────────────────────────── -->
     <section class="intro-section" aria-labelledby="intro-heading">
       <div class="intro-blurb">
         <h2 id="intro-heading" class="intro-heading">Big 5 Player Radar</h2>
@@ -46,8 +41,6 @@
           using the search boxes below.
         </p>
       </div>
-      <!-- Collapsible how-to: <details>/<summary> gives free keyboard nav,
-           aria-expanded, and focus management without any JavaScript. -->
       <details class="how-to" id="how-to-details">
         <summary class="how-to__toggle" aria-label="How to use this visualization">
           How to use
@@ -128,9 +121,6 @@
       <article class="player-panel player-panel--a" aria-labelledby="name-a">
         <div class="player-search">
           <label for="search-a">Player A</label>
-          <!-- Position filter (Feature 2): multi-select toggles that narrow
-               search results to specific positions without affecting the league
-               pool or the radar-preset axes. -->
           <div
             id="pos-filter-a"
             class="pos-filter-group"
@@ -171,8 +161,6 @@
             <h3 id="name-a" class="player-name">Player A</h3>
             <div id="identity-a" class="identity-row" aria-label="Player nationality and club"></div>
             <p id="meta-a" class="player-meta"></p>
-            <!-- Rankings button (Feature 3): always available once a player is
-                 selected, even if auto-popup is suppressed. -->
             <button
               type="button"
               id="rank-btn-a"
@@ -255,12 +243,6 @@
 
   </main>
 
-  <!-- ── FOOTER ───────────────────────────────────────────────────────────
-       Feature 3: dataset link points to the companion tabular data page.
-       Link colour (#3b82f6) achieves ~5.7:1 contrast on the dark footer
-       background, meeting WCAG AA for normal text. Hover and focus states
-       are visually distinct from the default state.
-       ─────────────────────────────────────────────────────────────────── -->
   <footer class="app-footer">
     <p>
       Data: FBref 2024/25 · ~2,854 player-seasons across the Big 5 European leagues · Player photos via Wikipedia / Wikimedia Commons · Stats scored 0–100 using min-max normalization across all players

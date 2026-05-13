@@ -69,13 +69,8 @@ let activeLeague = "all";
 let activePosition = "all";
 let activeRole = "all";
 
-/**
- * POSITION SEARCH FILTERS (Feature 2)
- * Per-side Sets of selected position codes (e.g. {"FW","MF"}).
- * An empty Set means "all positions" — no filtering applied.
- * Kept separate per panel so Player A and Player B can be filtered
- * independently (e.g. A → FW only, B → GK only).
- */
+// Per-panel position filters. An empty Set means "all positions".
+// Kept separate so each search box can filter independently.
 const posFilterA = new Set();
 const posFilterB = new Set();
 
@@ -243,13 +238,9 @@ const ROLE_PRESETS = {
   goalkeeper: ["Saves", "Save%", "CS", "GA", "PSxG", "Stp"],
 };
 
-/**
- * DEFAULT PLAYER SELECTION (Feature 1)
- * Priority-ordered pools of notable 2024/25 players per league.
- * selectLeagueDefaults() walks each pool and picks the first two
- * names that actually exist in the loaded CSV dataset.
- * Falls back to the first two rows in the league if none are found.
- */
+// Notable 2024/25 players shown by default when a league tab is clicked.
+// selectLeagueDefaults() picks the first two that exist in the CSV.
+// Falls back to the first two rows in that league if none are found.
 const LEAGUE_PLAYER_POOLS = {
   "all": [
     "Vinicius Júnior", "Erling Haaland", "Kylian Mbappé", "Mohamed Salah",
@@ -285,7 +276,7 @@ function formatRaw(key, raw) {
   return raw.toFixed(2);
 }
 
-/** Dataset value with extra precision for chart tooltips */
+// Same as formatRaw but with more decimal places for the tooltip
 function formatRawExact(key, raw) {
   if (raw === null || raw === undefined || Number.isNaN(raw)) return "—";
   const n = Number(raw);
@@ -439,21 +430,14 @@ function rowMatchesActiveLeague(row) {
   return activeLeague === "all" || row?.Comp === activeLeague;
 }
 
-/**
- * Filter the player pool by name query and an optional position filter Set.
- *
- * posFilter (Feature 2): a Set of position codes such as {"FW","MF"}.
- * A player matches if ANY of their listed positions (comma-separated in the
- * CSV) appears in the Set.  An empty / null Set means "all positions".
- * This filter is per-side (posFilterA / posFilterB) and is independent of
- * the league pool and radar-preset axis filters.
- */
+// Filter the player pool by name and an optional Set of position codes.
+// A player matches if ANY of their listed positions is in the Set.
+// An empty/null Set means no filtering.
 function filterPlayers(q, posFilter = null) {
   if (!dataset) return [];
   const qq = asciiSearchText(q);
   const out = [];
   for (const row of visibleRows()) {
-    // Position filter: match any position the player plays
     if (posFilter && posFilter.size > 0) {
       const positions = String(row.Pos || "").split(",").map((p) => p.trim());
       if (!positions.some((p) => posFilter.has(p))) continue;
@@ -636,26 +620,14 @@ function applyRecommendedAxes() {
   }
 }
 
-/**
- * Build per-axis metadata for a player, optionally including differential
- * values compared to the other player (Feature 2 — Differential Tooltip).
- *
- * @param {object}      row      - The primary player's dataset row.
- * @param {string[]}    keys     - The active radar axis keys.
- * @param {object|null} otherRow - The comparison player's row, or null when
- *                                 only one player is selected (no diff shown).
- */
+// Build per-axis tooltip metadata for a player.
+// When otherRow is provided, also computes signed diffs vs. that player.
 function buildMeta(row, keys, otherRow = null) {
   return keys.map((key) => {
     const raw   = dataset.rawForPlayer(row, key);
     const score = dataset.normalizedForPlayer(row, key);
     const range = dataset.rangeForStat(key);
 
-    // --- Differential calculations ---
-    // Compare this player's raw value and normalized score against the other
-    // player on the same axis. Both rawDiff and scoreDiff are kept as raw
-    // numbers so radarChart.js can colour-code them; the pre-formatted strings
-    // avoid duplicating formatting logic inside the chart module.
     let rawDiff     = null;
     let scoreDiff   = null;
     let rawDiffStr  = null;
@@ -668,8 +640,7 @@ function buildMeta(row, keys, otherRow = null) {
       if (raw != null && !Number.isNaN(Number(raw)) &&
           otherRaw != null && !Number.isNaN(Number(otherRaw))) {
         rawDiff = Number(raw) - Number(otherRaw);
-        // Re-use formatRaw on the absolute value then prepend the sign,
-        // so percentage-type stats still render with their "%" suffix.
+        // Use formatRaw on the absolute value so % stats keep their suffix
         const sign = rawDiff >= 0 ? "+" : "-";
         rawDiffStr = sign + formatRaw(key, Math.abs(rawDiff));
       }
@@ -677,7 +648,6 @@ function buildMeta(row, keys, otherRow = null) {
       if (score != null && !Number.isNaN(Number(score)) &&
           otherScore != null && !Number.isNaN(Number(otherScore))) {
         scoreDiff = Number(score) - Number(otherScore);
-        // Scores are 0–100 normalized points; show as "±X.X pts"
         const sign = scoreDiff >= 0 ? "+" : "";
         scoreDiffStr = `${sign}${scoreDiff.toFixed(1)} pts`;
       }
@@ -693,7 +663,6 @@ function buildMeta(row, keys, otherRow = null) {
         range?.min == null || range?.max == null
           ? "N/A"
           : `${formatRawExact(key, range.min)} to ${formatRawExact(key, range.max)}`,
-      // Differential data (null when no comparison player is selected)
       rawDiff,
       scoreDiff,
       rawDiffStr,
@@ -758,14 +727,12 @@ function updateChart() {
       name: playerA?.Player ?? "Player A",
       color: "var(--player-a)",
       values: valsA,
-      // Pass playerB as the comparison reference so differential tooltips work (Feature 2)
       meta: playerA ? buildMeta(playerA, axisKeys, playerB) : axisKeys.map(() => ({})),
     },
     playerB: {
       name: playerB?.Player ?? "Player B",
       color: "var(--player-b)",
       values: valsB,
-      // Pass playerA as the comparison reference so differential tooltips work (Feature 2)
       meta: playerB ? buildMeta(playerB, axisKeys, playerA) : axisKeys.map(() => ({})),
     },
     transitionMs: 450,
@@ -784,7 +751,6 @@ function onPickPlayer(side, row) {
     loadSelectedPlayerImage("a", row);
     legendA.textContent = row.Player;
     if (headlineA) headlineA.textContent = row.Player;
-    // Show the manual rankings button now that a player is loaded (Feature 3)
     if (rankBtnA) rankBtnA.hidden = false;
   } else {
     playerB = row;
@@ -810,17 +776,8 @@ function selectDefaultPlayers() {
   if (haaland) onPickPlayer("b", haaland);
 }
 
-/**
- * DEFAULT PLAYER SELECTION PER LEAGUE (Feature 1)
- *
- * Called whenever the active league filter changes.  Walks the priority pool
- * for the chosen league (LEAGUE_PLAYER_POOLS) and picks the first two player
- * names that exist in the loaded dataset.  Falls back to the first two rows
- * for that league if none of the named candidates are found.
- *
- * This function is ONLY called from the league-tab click handler, ensuring
- * defaults fire on league change but never override manual player selections.
- */
+// Pick two default players for the chosen league from LEAGUE_PLAYER_POOLS.
+// Only called from the league-tab handler so manual picks are never overridden.
 function selectLeagueDefaults(league) {
   if (!dataset) return;
 
@@ -829,7 +786,6 @@ function selectLeagueDefaults(league) {
     ? dataset.rows
     : dataset.rows.filter((r) => r.Comp === league);
 
-  // Walk the priority pool and collect the first two distinct matches
   const found = [];
   for (const name of pool) {
     const row = leagueRows.find((r) => r.Player === name);
@@ -839,7 +795,7 @@ function selectLeagueDefaults(league) {
     }
   }
 
-  // If the named pool didn't yield two players, fill from the league roster
+  // Fall back to any two players from the league if the named pool didn't match
   if (found.length < 2) {
     for (const row of leagueRows) {
       if (!found.includes(row)) {
@@ -852,7 +808,6 @@ function selectLeagueDefaults(league) {
   if (found[0]) onPickPlayer("a", found[0]);
   if (found[1]) onPickPlayer("b", found[1]);
 
-  // After both players are set, apply position-appropriate axes and re-render
   if (found[0] && found[1]) {
     applyRecommendedAxes();
     updateChart();
@@ -973,7 +928,6 @@ function clearPlayer(side) {
     imgA.alt = "";
     legendA.textContent = "Player A";
     if (headlineA) headlineA.textContent = "Player A";
-    // Hide rankings button when no player is selected (Feature 3)
     if (rankBtnA) rankBtnA.hidden = true;
   } else {
     playerB = null;
@@ -995,7 +949,6 @@ function setupSearch(side) {
   const list      = side === "a" ? listA   : listB;
   const posFilter = side === "a" ? posFilterA : posFilterB;
 
-  // Shared refresh — re-runs whenever query text or position filter changes
   function refresh() {
     const rows = filterPlayers(input.value.trim(), posFilter);
     renderList(list, rows, (row) => onPickPlayer(side, row));
@@ -1013,22 +966,12 @@ function setupSearch(side) {
     }
   });
 
-  // Wire the position filter button group for this panel (Feature 2)
   setupPositionSearchFilter(side, refresh);
 }
 
-/**
- * POSITION SEARCH FILTER SETUP (Feature 2)
- *
- * Wires the five position-filter buttons (All · FW · MF · DF · GK) for one
- * player panel.  FW/MF/DF/GK are multi-select — clicking several keeps all
- * active.  Clicking "All" clears the filter entirely.  Clicking an active
- * specific-position button deactivates it; if no specific positions remain
- * active the filter automatically reverts to "all".
- *
- * The active position set (posFilterA / posFilterB) is a module-level Set so
- * refreshPlayerSearches() can also access it when the league changes.
- */
+// Wire the FW / MF / DF / GK / All filter buttons for one player panel.
+// Multi-select: several position codes can be active at once.
+// "All" clears the filter; deactivating the last specific code also clears it.
 function setupPositionSearchFilter(side, refreshFn) {
   const group     = document.getElementById(`pos-filter-${side}`);
   if (!group) return;
@@ -1039,15 +982,12 @@ function setupPositionSearchFilter(side, refreshFn) {
       const pos = btn.dataset.pos;
 
       if (pos === "all") {
-        // Clear all specific-position selections
         posFilter.clear();
       } else {
-        // Toggle this position
         if (posFilter.has(pos)) posFilter.delete(pos);
         else posFilter.add(pos);
       }
 
-      // Sync aria-pressed and is-active state on every button in this group
       group.querySelectorAll(".pos-filter-btn").forEach((b) => {
         const active =
           b.dataset.pos === "all"
@@ -1079,8 +1019,6 @@ function updateLeagueStatus() {
 function refreshPlayerSearches() {
   if (playerA && !rowMatchesActiveLeague(playerA)) clearPlayer("a");
   if (playerB && !rowMatchesActiveLeague(playerB)) clearPlayer("b");
-  // Pass per-side position filters so the dropdown respects both league and
-  // position selections simultaneously (Feature 2)
   renderList(listA, filterPlayers(searchA.value.trim(), posFilterA), (row) => onPickPlayer("a", row));
   renderList(listB, filterPlayers(searchB.value.trim(), posFilterB), (row) => onPickPlayer("b", row));
   listA.hidden = document.activeElement !== searchA || listA.children.length === 0;
@@ -1110,9 +1048,8 @@ function setupLeagueFilter() {
 
       refreshPlayerSearches();
 
-      // Auto-select two notable defaults whenever the league filter changes (Feature 1).
-      // refreshPlayerSearches() may have already cleared out-of-league players, so
-      // selectLeagueDefaults() runs after to populate both slots fresh.
+      // refreshPlayerSearches() may have already cleared out-of-league players,
+      // so defaults are applied after to fill both slots fresh.
       selectLeagueDefaults(activeLeague);
     });
   });
@@ -1194,15 +1131,10 @@ function setupRoleFilter() {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RANKING MODAL (Feature 3)
-// ─────────────────────────────────────────────────────────────────────────────
+// ── RANKING MODAL ────────────────────────────────────────────────────────────
 
-/**
- * Trap keyboard focus inside `container` while the modal is open.
- * Returns a cleanup function that removes the keydown listener.
- * Handles both forward (Tab) and reverse (Shift+Tab) cycling.
- */
+// Trap keyboard focus inside `container` while the modal is open.
+// Returns a cleanup function. Handles Tab and Shift+Tab cycling.
 function trapFocus(container) {
   const FOCUSABLE =
     'a[href], button:not([disabled]), input:not([disabled]), ' +
@@ -1235,18 +1167,14 @@ function trapFocus(container) {
   return () => container.removeEventListener("keydown", onKeyDown);
 }
 
-/** Module-level state for the ranking modal */
-let _rankingModal      = null;  // the overlay element
-let _removeFocusTrap   = null;  // cleanup fn from trapFocus
-let _lastFocusEl       = null;  // element to restore focus to on close
-let _onModalEscape     = null;  // bound keydown handler
-// Persist "don't show automatically" across page reloads
+let _rankingModal      = null;
+let _removeFocusTrap   = null;
+let _lastFocusEl       = null;
+let _onModalEscape     = null;
+// Persisted so the preference survives a page reload
 let suppressAutoRanking = localStorage.getItem("suppressAutoRanking") === "true";
 
-/**
- * Build the modal DOM once and cache it.  All subsequent opens just
- * repopulate the list — no additional DOM creation.
- */
+// Build the modal DOM once. Subsequent opens just repopulate the list.
 function createRankingModal() {
   const overlay = document.createElement("div");
   overlay.id        = "ranking-modal";
@@ -1271,15 +1199,12 @@ function createRankingModal() {
       </div>
     </div>`;
 
-  // Close on backdrop click
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeRankingModal();
   });
 
-  // Wire close button
   overlay.querySelector(".modal-close").addEventListener("click", closeRankingModal);
 
-  // Wire "suppress auto" checkbox — persist to localStorage
   overlay.querySelector("#modal-no-auto").addEventListener("change", (e) => {
     suppressAutoRanking = e.target.checked;
     localStorage.setItem("suppressAutoRanking", String(suppressAutoRanking));
@@ -1289,28 +1214,21 @@ function createRankingModal() {
   return overlay;
 }
 
-/**
- * Open the ranking modal for `player` (a dataset row).
- * `tag` is "A" or "B" — used for accent colour.
- * `isAutoTriggered` is true when called from a polygon click; false when
- * the user explicitly clicks the Rankings button.
- */
+// Open the ranking modal for `player`. `tag` ("A" or "B") sets the accent colour.
+// `isAutoTriggered` distinguishes polygon clicks from the Rankings button.
 function openRankingModal(player, tag, isAutoTriggered = false) {
   if (!player || !dataset) return;
   if (isAutoTriggered && suppressAutoRanking) return;
 
   if (!_rankingModal) _rankingModal = createRankingModal();
 
-  // Sync checkbox with current preference
   _rankingModal.querySelector("#modal-no-auto").checked = suppressAutoRanking;
 
-  // Accent colour mirrors player colour variable
   const accentColor = tag === "A" ? "var(--player-a)" : "var(--player-b)";
   const titleEl = _rankingModal.querySelector("#modal-title");
   titleEl.textContent = `${player.Player} · Attribute Rankings`;
   titleEl.style.borderBottomColor = accentColor;
 
-  // Build ranked attribute list sorted descending by normalized score
   const items = axisKeys
     .map((key) => ({
       key,
@@ -1333,7 +1251,6 @@ function openRankingModal(player, tag, isAutoTriggered = false) {
     )
     .join("");
 
-  // Open modal — save focus, reveal, trap, focus close button
   _lastFocusEl    = document.activeElement;
   _rankingModal.hidden = false;
   _removeFocusTrap = trapFocus(_rankingModal.querySelector(".modal-card"));
@@ -1344,7 +1261,7 @@ function openRankingModal(player, tag, isAutoTriggered = false) {
   _rankingModal.querySelector(".modal-close").focus();
 }
 
-/** Close the ranking modal and restore focus to the previously focused element. */
+// Close the modal and return focus to whatever was focused before it opened.
 function closeRankingModal() {
   if (!_rankingModal || _rankingModal.hidden) return;
   _rankingModal.hidden = true;
@@ -1352,8 +1269,6 @@ function closeRankingModal() {
   if (_onModalEscape)   { document.removeEventListener("keydown", _onModalEscape); _onModalEscape = null; }
   _lastFocusEl?.focus();
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchDatasetCsv() {
   const filename = "players_data_cleaned_v2.csv";
@@ -1381,15 +1296,11 @@ async function init() {
     catalog = dataset.availableStatsCatalog();
     statusEl.textContent = `${rows.length} player-season rows · min-max normalized stats`;
 
-    // Outer wrapper elements for the two legend items (contain swatch + text span)
     const legendItemA = legendA.closest(".legend-item");
     const legendItemB = legendB.closest(".legend-item");
 
-    /**
-     * RADAR LOCK — called by radarChart whenever the lock state changes.
-     * Applies is-locked / is-dimmed CSS classes to the legend items so the
-     * user gets clear visual feedback about which radar is focused.
-     */
+    // Called by radarChart when the lock state changes.
+    // Updates legend styling to show which player is focused.
     function handleLockChange(lockedTag) {
       if (!legendItemA || !legendItemB) return;
 
@@ -1398,7 +1309,6 @@ async function init() {
       legendItemB.classList.toggle("is-locked", lockedTag === "B");
       legendItemB.classList.toggle("is-dimmed", lockedTag === "A");
 
-      // Update the hint text below the legend
       const hint = document.getElementById("radar-lock-hint");
       if (hint) {
         hint.textContent = lockedTag
@@ -1412,20 +1322,14 @@ async function init() {
       height: 600,
       onAxisLabelClick: showChartAxisPicker,
       onLockChange: handleLockChange,
-      /**
-       * RANKING MODAL auto-trigger (Feature 3)
-       * Clicking the polygon area fires this callback.  It passes
-       * isAutoTriggered=true so the "don't show automatically" preference
-       * is respected; manual rank-button clicks pass false.
-       */
+      // isAutoTriggered=true so the "don't show automatically" pref is respected
       onPolygonClick: (tag) => {
         const player = tag === "A" ? playerA : playerB;
         if (player) openRankingModal(player, tag, true);
       },
     });
 
-    // Manual ranking buttons — always open the modal regardless of the
-    // "don't show automatically" preference (Feature 3)
+    // Rankings buttons always open the modal, ignoring the auto-popup pref
     rankBtnA?.addEventListener("click", () => {
       if (playerA) openRankingModal(playerA, "A", false);
     });
@@ -1433,7 +1337,6 @@ async function init() {
       if (playerB) openRankingModal(playerB, "B", false);
     });
 
-    // Make legend items clickable to toggle the radar lock
     if (legendItemA) {
       legendItemA.setAttribute("role", "button");
       legendItemA.setAttribute("tabindex", "0");

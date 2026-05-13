@@ -1,7 +1,6 @@
-/**
- * Resolve player headshots without the Express /api/player route (Live Server, static hosts).
- * Uses Wikipedia, Wikidata, and Wikimedia Commons with CORS (origin=*).
- */
+// Resolve player headshots using Wikipedia, Wikidata, and Wikimedia Commons.
+// Works without a local server — all APIs support CORS with origin=*.
+
 
 const EXTRA_ASCII = {
   Æ: "AE",
@@ -43,7 +42,8 @@ function significantTokens(playerName) {
   return asciiSearchText(playerName).split(_WS).filter((t) => t.length >= 3);
 }
 
-/** Prefer articles whose title contains each distinct part of the player name (reduces season/league hits). */
+// Check that every significant word of the player name appears in the title.
+// This filters out season pages, league articles, etc.
 export function titleMatchesPlayer(title, playerName) {
   const nt = asciiSearchText(title);
   const tokens = significantTokens(playerName);

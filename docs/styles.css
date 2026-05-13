@@ -6,11 +6,8 @@
   --surface-glass: rgba(18, 20, 23, 0.72);
   --text: #f4f4f5;
   --text-muted: #a1a1aa;
-  /*
-   * ACCESSIBILITY (Feature 3): --text-dim was #71717a (~4.1:1 on --bg),
-   * which falls below the WCAG AA threshold of 4.5:1 for normal-size text.
-   * Raised to #8d8d9a (~6.1:1 on --bg) to meet AA at all used font sizes.
-   */
+  /* #71717a was only 4.1:1 contrast on --bg, below WCAG AA.
+     #8d8d9a gives ~6.1:1 and passes at all font sizes used in the app. */
   --text-dim: #8d8d9a;
   --border: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.18);
@@ -137,8 +134,6 @@ input {
   background: var(--player-b);
 }
 
-/* ACCESSIBILITY (Feature 3): bumped weight from 500→600 so small subtitle
-   text reads clearly without relying solely on colour for legibility. */
 .lede {
   margin: 0.2rem auto 0;
   color: var(--text-muted);
@@ -148,7 +143,6 @@ input {
 
 .load-status {
   margin: 0.1rem 0 0;
-  /* Uses --text-dim which is now #8d8d9a (6.1:1 contrast). */
   color: var(--text-dim);
   font-size: 0.74rem;
   font-weight: 600;
@@ -211,8 +205,6 @@ input {
   text-transform: uppercase;
 }
 
-/* ACCESSIBILITY (Feature 3): small filter-status text; weight 700 keeps it
-   readable at 0.78rem without needing to change the colour. */
 .league-filter p {
   margin: 0;
   color: var(--text-muted);
@@ -325,8 +317,6 @@ input {
   padding: 0;
 }
 
-/* ACCESSIBILITY (Feature 3): label text is small (0.78rem); keeping weight
-   at 700 ensures it stays legible against its background (~8:1 contrast). */
 .player-search label {
   display: block;
   margin-bottom: 0.38rem;
@@ -401,8 +391,6 @@ input {
   font-weight: 750;
 }
 
-/* ACCESSIBILITY (Feature 3): 0.72rem is very small — weight 600 compensates
-   to keep the squad / league / position line legible in the dropdown. */
 .ac-meta {
   color: var(--text-muted);
   font-size: 0.72rem;
@@ -551,7 +539,6 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  /* Clickable — cursor and transitions set for lock interaction */
   cursor: pointer;
   user-select: none;
   padding: 0.22rem 0.55rem;
@@ -569,7 +556,7 @@ input {
   outline-offset: 2px;
 }
 
-/* LOCKED: the actively focused player — highlighted border, full opacity */
+/* Focused player: highlighted border */
 .legend-item.is-locked {
   border-color: var(--border-strong);
   background: rgba(255, 255, 255, 0.07);
@@ -587,12 +574,11 @@ input {
   background: rgba(59, 130, 246, 0.08);
 }
 
-/* DIMMED: the other player — faded to show it's locked out */
+/* The other player fades out when one is focused */
 .legend-item.is-dimmed {
   opacity: 0.38;
 }
 
-/* Small instructional hint below the legend */
 .radar-lock-hint {
   margin: 0.3rem 0 0;
   color: var(--text-dim);
@@ -624,13 +610,8 @@ input {
   font-size: 0.78rem;
 }
 
-/* ── INTRO SECTION (Feature 1) ───────────────────────────────────────────── */
-/*
- * Sits at the top of <main>, above the league filter. Flex row on desktop
- * (intro text left, How-to toggle anchored right); wraps to a single column
- * on narrow viewports. All text uses --text-muted (#a1a1aa ≈ 8:1 on bg) or
- * --text (~19:1) so the section meets WCAG AA at every font size used.
- */
+/* ── INTRO SECTION ───────────────────────────────────────────────────────── */
+/* Flex row on desktop, single column on narrow viewports */
 .intro-section {
   display: flex;
   align-items: flex-start;
@@ -650,41 +631,33 @@ input {
   gap: 0.28rem;
 }
 
-/* Visually small heading above the blurb paragraph */
 .intro-heading {
   margin: 0;
-  color: var(--player-a);          /* yellow — same as broadcast-kicker */
+  color: var(--player-a);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-/* Main descriptive paragraph — comfortable reading size and weight */
 .intro-text {
   margin: 0;
-  color: var(--text-muted);        /* #a1a1aa — ~8:1 on bg */
+  color: var(--text-muted);
   font-size: 0.88rem;
   font-weight: 500;
   line-height: 1.58;
   max-width: 780px;
 }
 
-/* ── HOW-TO COLLAPSIBLE (Feature 2) ─────────────────────────────────────── */
-/*
- * Uses the native <details>/<summary> disclosure pattern so keyboard focus,
- * aria-expanded, and Enter/Space activation are handled by the browser with
- * no JavaScript required. The chevron rotates 180° via CSS when the element
- * is open. Text and border colours meet WCAG AA on the dark surface.
- */
+/* ── HOW-TO COLLAPSIBLE ──────────────────────────────────────────────────── */
+/* Uses <details>/<summary> so keyboard focus and aria-expanded are free */
 .how-to {
   flex: 0 0 auto;
   align-self: flex-start;
 }
 
-/* <summary> rendered as a compact button-like toggle */
 .how-to__toggle {
-  list-style: none;          /* remove Firefox default marker */
+  list-style: none;          /* Firefox shows a default marker — remove it */
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -692,7 +665,7 @@ input {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  color: var(--text-muted);  /* ~8:1 on surface */
+  color: var(--text-muted);
   font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
@@ -710,13 +683,11 @@ input {
   color: var(--text);
 }
 
-/* Visible keyboard focus indicator — matches other interactive controls */
 .how-to__toggle:focus-visible {
   outline: 2px solid rgba(250, 204, 21, 0.74);
   outline-offset: 3px;
 }
 
-/* Chevron rotates when the details panel is open */
 .how-to__chevron {
   display: inline-block;
   font-size: 0.72rem;
@@ -728,7 +699,6 @@ input {
   transform: rotate(180deg);
 }
 
-/* Instruction list that appears when the details is expanded */
 .how-to__list {
   margin: 0.55rem 0 0;
   padding: 0.62rem 0.85rem;
@@ -744,28 +714,21 @@ input {
 }
 
 .how-to__list li {
-  color: var(--text-muted);  /* ~8:1 */
+  color: var(--text-muted);
   font-size: 0.82rem;
   font-weight: 500;
   line-height: 1.48;
 }
 
 .how-to__list li strong {
-  color: var(--text);        /* ~19:1 */
+  color: var(--text);
   font-weight: 750;
 }
 
-/* ── DATASET LINK (Feature 3) ────────────────────────────────────────────── */
-/*
- * Inline link in the footer pointing at the companion tabular data page.
- * #3b82f6 (blue-500) achieves ~5.7:1 contrast on the dark footer background
- * — meets WCAG AA for normal-weight text at this size. The underline
- * communicates interactivity without relying solely on colour. Hover shifts
- * to blue-300 (~11:1) for a clear state change. Focus outline is the standard
- * yellow ring used throughout the site.
- */
+/* ── DATASET LINK ────────────────────────────────────────────────────────── */
+/* #3b82f6 gives ~5.7:1 contrast on the dark footer — passes WCAG AA */
 .dataset-link {
-  color: var(--player-b);                            /* #3b82f6 — ~5.7:1 */
+  color: var(--player-b);
   font-weight: 700;
   text-decoration: underline;
   text-decoration-color: rgba(59, 130, 246, 0.45);
@@ -774,7 +737,7 @@ input {
 }
 
 .dataset-link:hover {
-  color: #93c5fd;                                    /* blue-300 — ~11:1 */
+  color: #93c5fd;
   text-decoration-color: rgba(147, 197, 253, 0.6);
 }
 
@@ -784,8 +747,6 @@ input {
   border-radius: 2px;
 }
 
-/* ACCESSIBILITY (Feature 3): footer is 0.72rem; --text-dim now 6.1:1,
-   weight 600 adds legibility at this small size. */
 .app-footer {
   max-width: 1480px;
   margin: 0 auto;
@@ -795,12 +756,6 @@ input {
   font-weight: 600;
 }
 
-/*
- * ACCESSIBILITY (Feature 3): Tooltip text was previously 0.8rem with some
- * elements using --text-muted (~8:1) and --text-dim (was ~4.1:1, now fine).
- * Bumped base size to 0.84rem and tightened line-height for denser diffs.
- * All text now meets WCAG AA against the near-opaque dark background.
- */
 .radar-tooltip {
   max-width: 300px;
   padding: 0.7rem 0.85rem;
@@ -814,7 +769,6 @@ input {
   pointer-events: none;
 }
 
-/* Stat name heading inside tooltip */
 .radar-tooltip .tt-stat-name {
   display: block;
   font-size: 0.92rem;
@@ -822,7 +776,6 @@ input {
   margin-bottom: 0.1rem;
 }
 
-/* Player name line — muted but still ~8:1 on the dark tooltip surface */
 .radar-tooltip .tt-player {
   display: block;
   color: var(--text-muted);
@@ -831,7 +784,6 @@ input {
   margin-bottom: 0.35rem;
 }
 
-/* Stat key in monospace — yellow gives clear visual anchor */
 .radar-tooltip .tt-key {
   display: block;
   color: var(--player-a);
@@ -841,16 +793,11 @@ input {
   margin-bottom: 0.05rem;
 }
 
-/* Generic row within a tooltip section */
 .radar-tooltip .tt-row {
   display: block;
   font-weight: 500;
 }
 
-/*
- * DIFFERENTIAL TOOLTIP (Feature 2): visual separator between the main
- * stat block and the differential comparison block.
- */
 .radar-tooltip .tt-section {
   margin-top: 0.3rem;
 }
@@ -861,7 +808,6 @@ input {
   border-top: 1px solid var(--border-strong);
 }
 
-/* Range footer, de-emphasised but still readable (--text-dim is now 6.1:1) */
 .radar-tooltip .tt-range {
   margin-top: 0.42rem;
   padding-top: 0.38rem;
@@ -871,10 +817,7 @@ input {
   font-weight: 600;
 }
 
-/*
- * ACCESSIBILITY + FEATURE 2: Positive / negative differential colours.
- * Both chosen for ≥ 6:1 contrast against the tooltip background.
- */
+/* Both colours are ≥ 6:1 contrast against the dark tooltip background */
 .radar-tooltip .tt-pos {
   color: var(--tt-pos);
 }
@@ -883,9 +826,7 @@ input {
   color: var(--tt-neg);
 }
 
-/* ACCESSIBILITY (Feature 3): 11px is small — keeping weight at 800 and
-   using var(--text) fill (set in radarChart.js drawAxes) ensures ~19:1
-   contrast on the dark chart background. */
+/* 11px is small — weight 800 keeps the axis label readable on the dark chart */
 .axis-label {
   font-size: 11px;
   font-weight: 800;
@@ -979,32 +920,25 @@ input {
   line-height: 1.25;
 }
 
-/* ── SCALE LABELS (Feature 1) ───────────────────────────────────────────── */
+/* ── SCALE LABELS ────────────────────────────────────────────────────────── */
 /*
- * Numerical labels on each concentric radar ring (20 · 40 · 60 · 80 · 100).
- * The paint-order trick gives every character a dark halo so labels stay
- * readable even when a polygon or axis line crosses them.  Using --text which
- * is #f4f4f5 (~19:1 on the chart background) satisfies WCAG AAA.
- * aria-hidden="true" is set in JS since tooltips expose the same values.
+ * Numeric ring labels (20 · 40 · 60 · 80 · 100).
+ * paint-order: stroke fill creates a dark halo so the text stays readable
+ * even when a polygon or axis line crosses it.
  */
 .scale-label {
   font-size: 9.5px;
   font-weight: 750;
-  fill: var(--text-muted);       /* #a1a1aa — ~8:1 on dark chart bg */
-  stroke: var(--bg);             /* dark halo matches chart background */
+  fill: var(--text-muted);
+  stroke: var(--bg);        /* halo colour matches the chart background */
   stroke-width: 3.5px;
   stroke-linejoin: round;
-  paint-order: stroke fill;      /* halo renders behind the fill colour */
+  paint-order: stroke fill; /* render halo behind the fill */
   pointer-events: none;
   user-select: none;
 }
 
-/* ── POSITION SEARCH FILTER (Feature 2) ─────────────────────────────────── */
-/*
- * Compact button row beneath each player's search label.  Buttons are small
- * and inline so they don't crowd the panel.  Multi-select: FW/MF/DF/GK can
- * be combined.  "All" clears back to no filter.
- */
+/* ── POSITION SEARCH FILTER ──────────────────────────────────────────────── */
 .pos-filter-group {
   display: flex;
   flex-wrap: wrap;
@@ -1018,7 +952,7 @@ input {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  color: var(--text-muted);      /* #a1a1aa — ~8:1 on surface background */
+  color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 750;
   letter-spacing: 0.04em;
@@ -1038,15 +972,13 @@ input {
   outline-offset: 2px;
 }
 
-/* Active state: bright border + accent colour, clear selected indicator */
 .pos-filter-btn.is-active {
   background: rgba(250, 204, 21, 0.10);
-  color: var(--text);            /* #f4f4f5 — maximum contrast */
+  color: var(--text);
   border-color: rgba(250, 204, 21, 0.55);
   font-weight: 800;
 }
 
-/* Rankings button on the player card */
 .rank-btn {
   display: inline-block;
   margin-top: 0.6rem;
@@ -1071,12 +1003,7 @@ input {
   outline-offset: 2px;
 }
 
-/* ── RANKING MODAL (Feature 3) ───────────────────────────────────────────── */
-/*
- * Full-screen overlay dims the chart without completely hiding it.
- * The modal card is centered and constrained in width/height for safety
- * on small screens.  All text meets WCAG AA contrast on the dark surface.
- */
+/* ── RANKING MODAL ───────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1086,8 +1013,7 @@ input {
   justify-content: center;
   background: rgba(0, 0, 0, 0.72);
   padding: 1rem;
-  /* Prevent content shift when the scrollbar disappears */
-  overflow-y: auto;
+  overflow-y: auto; /* prevents layout shift when scrollbar disappears */
 }
 
 .modal-overlay[hidden] {
@@ -1117,7 +1043,7 @@ input {
 
 .modal-title {
   margin: 0;
-  color: var(--text);            /* #f4f4f5 — ~19:1 on modal bg */
+  color: var(--text);
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.15;
@@ -1130,7 +1056,7 @@ input {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-muted);      /* ~8:1 on modal bg */
+  color: var(--text-muted);
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
@@ -1147,7 +1073,6 @@ input {
   outline-offset: 2px;
 }
 
-/* Ranked attribute list */
 .ranking-list {
   margin: 0;
   padding: 0.5rem 1rem 0.25rem;
@@ -1166,22 +1091,20 @@ input {
 
 .ranking-item:last-child { border-bottom: none; }
 
-/* Rank number */
 .rank-num {
-  color: var(--text-dim);        /* #8d8d9a — ~6:1 */
+  color: var(--text-dim);
   font-size: 0.78rem;
   font-weight: 700;
   text-align: right;
 }
 
-/* Attribute name */
 .rank-name {
-  color: var(--text);            /* #f4f4f5 — ~19:1 */
+  color: var(--text);
   font-size: 0.9rem;
   font-weight: 700;
 }
 
-/* Normalized score (coloured by player accent, set inline) */
+/* Score colour is set inline by JS to match the player's accent */
 .rank-score {
   font-size: 1.05rem;
   font-weight: 900;
@@ -1189,15 +1112,13 @@ input {
   text-align: right;
 }
 
-/* Raw value in parentheses */
 .rank-raw {
-  color: var(--text-muted);      /* #a1a1aa — ~8:1 */
+  color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
 }
 
-/* "Don't show automatically" checkbox row */
 .modal-pref {
   padding: 0.65rem 1rem 0.8rem;
   border-top: 1px solid var(--border);
@@ -1207,7 +1128,7 @@ input {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-muted);      /* ~8:1 */
+  color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -1222,10 +1143,7 @@ input {
   cursor: pointer;
 }
 
-/* ── AXIS OPTION DESCRIPTION (contrast fix) ──────────────────────────────── */
-/* ACCESSIBILITY (Feature 3): description text is 0.72rem — using --text-dim
-   which is now #8d8d9a (6.1:1) keeps it readable. Weight bump to 550 adds
-   a small extra legibility boost at this small size. */
+/* 0.72rem is small — weight 550 adds legibility without darkening the colour */
 .chart-axis-option__desc {
   margin-top: 0.2rem;
   color: var(--text-dim);

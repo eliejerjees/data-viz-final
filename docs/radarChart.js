@@ -1,6 +1,7 @@
 /**
- * D3 radar chart: six fixed axes, two polygons, transitions, tooltips, hover emphasis.
- * Vertex tooltips must NOT rebuild dots on hover (that breaks mouseenter / tooltip).
+ * D3 radar chart with six axes, two player polygons, animated transitions,
+ * and vertex tooltips. Dots are never rebuilt on hover — that would break the
+ * mouseenter/tooltip handlers.
  */
 
 export function createRadarChart(containerEl, options = {}) {
@@ -24,9 +25,8 @@ export function createRadarChart(containerEl, options = {}) {
 
   const g = svg.append("g").attr("transform", `translate(${cx},${cy})`);
 
-  // Transparent full-SVG rect sitting below every other element.
-  // Clicking empty space clears the radar lock without interfering with
-  // polygon / dot click handlers (those call stopPropagation).
+  // Invisible background rect — clicking it clears the radar lock.
+  // Polygon and dot handlers call stopPropagation so they don't bubble here.
   svg
     .insert("rect", ":first-child")
     .attr("width", width)
@@ -65,26 +65,14 @@ export function createRadarChart(containerEl, options = {}) {
 
   const angleSlice = (Math.PI * 2) / 6;
 
-  /**
-   * SCALE LABELS (Feature 1)
-   * Render a numeric score label on every concentric ring so users can
-   * read approximate values before hovering.  Labels are placed at the
-   * midpoint between axis 0 (top, –90°) and axis 1 (upper-right, –30°),
-   * i.e. at –60° from vertical, which is clean empty space between the
-   * two uppermost axes and never conflicts with axis-label text.
-   *
-   * The CSS `paint-order: stroke fill` trick creates a dark halo around
-   * each character, guaranteeing readability even when a polygon is drawn
-   * across the label position.
-   *
-   * Labels are aria-hidden because exact values are already exposed via
-   * the interactive vertex tooltips.
-   */
+  // Numeric labels (20 · 40 · 60 · 80 · 100) on each concentric ring.
+  // Placed at –60° from vertical — the gap between the top two axes.
+  // aria-hidden because the vertex tooltips already expose exact values.
   {
     const SCALE_ANGLE = -Math.PI / 2 + angleSlice * 0.5; // –60° from vertical
     for (let i = 1; i <= levels; i++) {
       const r   = (radius * i) / levels;
-      const score = (100 * i) / levels; // 20 · 40 · 60 · 80 · 100
+      const score = (100 * i) / levels;
       levelGroup
         .append("text")
         .attr("x", Math.cos(SCALE_ANGLE) * r)
@@ -119,11 +107,7 @@ export function createRadarChart(containerEl, options = {}) {
     playerA: { name: "Player A", color: "var(--player-a)", values: [], meta: [] },
     playerB: { name: "Player B", color: "var(--player-b)", values: [], meta: [] },
     emphasis: null,
-    /**
-     * RADAR LOCK — null means no lock, "A" or "B" means that player's
-     * radar is "focused": the other polygon is heavily dimmed and its
-     * dots have pointer-events disabled so tooltips never mis-fire.
-     */
+    // "A" or "B" = that radar is focused; null = no lock
     lockedTag: null,
   };
 
@@ -204,18 +188,10 @@ export function createRadarChart(containerEl, options = {}) {
     return line(pts);
   }
 
-  /**
-   * Update fill / stroke / dot opacity only — keeps DOM nodes alive for tooltips.
-   *
-   * When a lock is active the "effective emphasis" comes from lockedTag (not
-   * just the transient hover state), and dimming is much stronger so the
-   * focused radar stands out clearly.
-   */
+  // Update fill/stroke/dot opacity. DOM nodes are never removed so tooltip
+  // handlers stay alive. Lock overrides transient hover with stronger dimming.
   function refreshEmphasis(transition) {
     const t = transition ?? d3.transition().duration(0);
-
-    // Lock takes priority over hover emphasis; when locked the contrast is
-    // cranked up so it's obvious which player is focused.
     const locked   = state.lockedTag !== null;
     const effective = state.lockedTag ?? state.emphasis;
 
@@ -242,11 +218,8 @@ export function createRadarChart(containerEl, options = {}) {
     });
   }
 
-  /**
-   * Disable pointer-events on dots belonging to the dimmed / locked-out player
-   * so they cannot accidentally capture hover events through the active layer.
-   * Called whenever lockedTag changes and after every renderDots() rebuild.
-   */
+  // Disable pointer-events on the locked-out player's dots so they don't
+  // accidentally capture hovers through the active layer.
   function updateDotPointerEvents() {
     dotGroup.selectAll(".vertex").each(function () {
       const tag     = d3.select(this).attr("data-tag");
@@ -255,13 +228,8 @@ export function createRadarChart(containerEl, options = {}) {
     });
   }
 
-  /**
-   * Toggle the radar lock for the given tag:
-   *   - If that player is already locked → clear the lock.
-   *   - If the other player is locked, or nothing is locked → lock this player.
-   * Fires the optional onLockChange(lockedTag) callback so the host page
-   * (main.js) can update legend styling.
-   */
+  // Toggle the lock for a player. Clicking the already-locked player clears it.
+  // Fires onLockChange so main.js can update the legend styling.
   function toggleLock(tag) {
     state.lockedTag = state.lockedTag === tag ? null : tag;
     const t = d3.transition().duration(180).ease(d3.easeCubicOut);
@@ -270,7 +238,6 @@ export function createRadarChart(containerEl, options = {}) {
     options.onLockChange?.(state.lockedTag);
   }
 
-  /** Clear the lock entirely (background click). */
   function clearLock() {
     if (state.lockedTag === null) return;
     state.lockedTag = null;
@@ -286,19 +253,14 @@ export function createRadarChart(containerEl, options = {}) {
       .style("cursor", "pointer")
       .on("mouseenter.hit", () => {
         state.emphasis = tag;
-        // Don't override a lock with transient hover emphasis
         if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
       })
       .on("mouseleave.hit", () => {
         state.emphasis = null;
         if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
       })
-      // Clicking the polygon BOTH locks/highlights the radar (so you can hover
-      // individual dots cleanly) AND fires the ranking-popup callback.
-      // The lock stays active after the popup closes, so users can immediately
-      // hover the highlighted dots without re-clicking.
-      // Dot clicks (wireDotHandlers) also toggle the lock independently.
-      // stopPropagation prevents the background-clear rect from also firing.
+      // Lock the radar and fire the ranking popup callback.
+      // stopPropagation prevents the background rect from also clearing the lock.
       .on("click.hit", (event) => {
         event.stopPropagation();
         toggleLock(tag);
@@ -306,18 +268,12 @@ export function createRadarChart(containerEl, options = {}) {
       });
   }
 
-  /**
-   * DIFFERENTIAL TOOLTIP (Feature 2)
-   * Builds the inner HTML for a vertex tooltip.
-   * When the datum carries rawDiffStr / scoreDiffStr (populated by buildMeta
-   * in main.js when a second player is selected), an extra section is appended
-   * that shows signed raw and score differentials vs. the other player.
-   * Positive diffs get the "tt-pos" class (green), negatives get "tt-neg" (red).
-   */
+  // Build the tooltip HTML for a vertex dot.
+  // When the datum has rawDiffStr/scoreDiffStr (set by buildMeta in main.js
+  // when two players are selected), an extra diff section is appended.
   function buildTooltipHtml(meta) {
     const esc = escapeHtml;
 
-    // Core rows — always present
     let html = `
       <strong class="tt-stat-name">${esc(meta.label ?? "")}</strong>
       <span class="tt-key">${esc(meta.key ?? "")}</span>
@@ -327,7 +283,6 @@ export function createRadarChart(containerEl, options = {}) {
         <div class="tt-row">Score&nbsp;<strong>${esc(String(meta.scoreExact ?? "—"))}</strong></div>
       </div>`;
 
-    // Differential section — only when comparison data is available
     if (meta.rawDiffStr != null || meta.scoreDiffStr != null) {
       const rawClass   = (meta.rawDiff   ?? 0) >= 0 ? "tt-pos" : "tt-neg";
       const scoreClass = (meta.scoreDiff ?? 0) >= 0 ? "tt-pos" : "tt-neg";
@@ -342,7 +297,6 @@ export function createRadarChart(containerEl, options = {}) {
       html += `</div>`;
     }
 
-    // Range footer
     html += `<div class="tt-range">Range&nbsp;${esc(String(meta.rangeExact ?? "—"))}</div>`;
 
     return html;
@@ -372,7 +326,6 @@ export function createRadarChart(containerEl, options = {}) {
         if (!state.lockedTag) refreshEmphasis(d3.transition().duration(120));
         tooltip.style("opacity", 0);
       })
-      // Clicking a dot also locks the radar to that player
       .on("click.dot", (event) => {
         event.stopPropagation();
         toggleLock(tag);
@@ -430,7 +383,6 @@ export function createRadarChart(containerEl, options = {}) {
     wireHitHandlers(hitB, "B");
 
     renderDots();
-    // Re-apply lock state to freshly created dot elements after every rebuild
     updateDotPointerEvents();
   }
 
@@ -499,10 +451,8 @@ export function createRadarChart(containerEl, options = {}) {
       renderGeometry(trans);
     },
 
-    /**
-     * Programmatically set the radar lock from outside the chart (e.g. a
-     * legend click in main.js).  Pass "A", "B", or null to clear.
-     */
+    // Set the lock from outside (e.g. a legend click in main.js).
+    // Pass "A", "B", or null to clear.
     setLock(tag) {
       if (tag === null) {
         clearLock();
